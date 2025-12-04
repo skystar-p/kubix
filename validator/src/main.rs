@@ -22,11 +22,34 @@ fn main() -> anyhow::Result<()> {
     let crds: Vec<(String, CustomResourceDefinition)> = try_parse_directory_files(&args.crd_dir)?;
     let manifests: Vec<(String, DynamicObject)> = try_parse_directory_files(&args.manifest_dir)?;
 
+    let errors = do_validation(crds, manifests);
+
+    if !errors.is_empty() {
+        for error in &errors {
+            eprintln!("Error: {}", error);
+        }
+
+        bail!("validation failed with {} errors", errors.len());
+    }
+
+    Ok(())
+}
+
+fn do_validation(
+    crds: Vec<(String, CustomResourceDefinition)>,
+    manifests: Vec<(String, DynamicObject)>,
+) -> Vec<anyhow::Error> {
     let mut errors = Vec::new();
 
     // verify each manifest against the CRDs
     for (name, manifest) in manifests {
-        let manifest_value = serde_json::to_value(&manifest)?;
+        let Ok(manifest_value) = serde_json::to_value(&manifest) else {
+            errors.push(anyhow::anyhow!(
+                "{:?}: failed to serialize manifest to JSON value",
+                name
+            ));
+            continue;
+        };
         let Some(types) = manifest.types else {
             errors.push(anyhow::anyhow!("{:?}: missing TypeMeta", name));
             continue;
@@ -95,7 +118,24 @@ fn main() -> anyhow::Result<()> {
             };
 
             // do validation
-            let validator = jsonschema::validator_for(&serde_json::to_value(&schema)?)?;
+            let Ok(schema) = serde_json::to_value(&schema) else {
+                errors.push(anyhow::anyhow!(
+                    "{:?}: empty schema in CRD {:?} version {:?}",
+                    name,
+                    crd_name,
+                    version
+                ));
+                continue;
+            };
+            let Ok(validator) = jsonschema::validator_for(&schema) else {
+                errors.push(anyhow::anyhow!(
+                    "{:?}: failed to create validator for CRD {:?} version {:?}",
+                    name,
+                    crd_name,
+                    version
+                ));
+                continue;
+            };
             let result = validator.validate(&manifest_value);
             if let Err(e) = result {
                 let instance_path = e.instance_path().to_string();
@@ -109,15 +149,7 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    if !errors.is_empty() {
-        for error in &errors {
-            eprintln!("Error: {}", error);
-        }
-
-        bail!("validation failed with {} errors", errors.len());
-    }
-
-    Ok(())
+    errors
 }
 
 fn try_parse_directory_files<T: serde::de::DeserializeOwned>(
