@@ -66,6 +66,7 @@ fn do_validation(
         };
 
         // find matching CRD
+        let mut crd_found = false;
         for (_, crd) in &crds {
             let crd_name = crd.metadata.name.clone().unwrap_or_default();
             let crd_group = crd.spec.group.clone();
@@ -74,6 +75,8 @@ fn do_validation(
             if crd_group != group || crd_kind != kind {
                 continue;
             }
+
+            crd_found = true;
 
             // find matching version
             let version_found = crd
@@ -146,6 +149,15 @@ fn do_validation(
                     e
                 ));
             }
+        }
+
+        if !crd_found {
+            errors.push(anyhow::anyhow!(
+                "{:?}: no matching CRD found for {}/{}",
+                name,
+                group,
+                kind
+            ));
         }
     }
 
