@@ -199,3 +199,373 @@ fn try_parse_directory_files<T: serde::de::DeserializeOwned>(
 
     Ok(items)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
+        CustomResourceDefinitionNames, CustomResourceDefinitionSpec,
+        CustomResourceDefinitionVersion, CustomResourceValidation, JSONSchemaProps,
+    };
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+    use kube::api::TypeMeta;
+    use serde_json::json;
+
+    fn make_crd(
+        group: &str,
+        kind: &str,
+        version: &str,
+        schema: Option<JSONSchemaProps>,
+    ) -> CustomResourceDefinition {
+        CustomResourceDefinition {
+            metadata: ObjectMeta {
+                name: Some(format!("{}s.{}", kind.to_lowercase(), group)),
+                ..Default::default()
+            },
+            spec: CustomResourceDefinitionSpec {
+                group: group.to_string(),
+                names: CustomResourceDefinitionNames {
+                    kind: kind.to_string(),
+                    plural: format!("{}s", kind.to_lowercase()),
+                    ..Default::default()
+                },
+                scope: "Namespaced".to_string(),
+                versions: vec![CustomResourceDefinitionVersion {
+                    name: version.to_string(),
+                    served: true,
+                    storage: true,
+                    schema: schema.map(|s| CustomResourceValidation {
+                        open_api_v3_schema: Some(s),
+                    }),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+            status: None,
+        }
+    }
+
+    fn make_manifest(api_version: &str, kind: &str, name: &str) -> DynamicObject {
+        DynamicObject {
+            types: Some(TypeMeta {
+                api_version: api_version.to_string(),
+                kind: kind.to_string(),
+            }),
+            metadata: ObjectMeta {
+                name: Some(name.to_string()),
+                ..Default::default()
+            },
+            data: json!({}),
+        }
+    }
+
+    fn make_manifest_with_data(
+        api_version: &str,
+        kind: &str,
+        name: &str,
+        data: serde_json::Value,
+    ) -> DynamicObject {
+        DynamicObject {
+            types: Some(TypeMeta {
+                api_version: api_version.to_string(),
+                kind: kind.to_string(),
+            }),
+            metadata: ObjectMeta {
+                name: Some(name.to_string()),
+                ..Default::default()
+            },
+            data,
+        }
+    }
+
+    fn simple_schema() -> JSONSchemaProps {
+        JSONSchemaProps {
+            type_: Some("object".to_string()),
+            properties: Some(
+                [
+                    (
+                        "apiVersion".to_string(),
+                        JSONSchemaProps {
+                            type_: Some("string".to_string()),
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "kind".to_string(),
+                        JSONSchemaProps {
+                            type_: Some("string".to_string()),
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "metadata".to_string(),
+                        JSONSchemaProps {
+                            type_: Some("object".to_string()),
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "spec".to_string(),
+                        JSONSchemaProps {
+                            type_: Some("object".to_string()),
+                            properties: Some(
+                                [(
+                                    "replicas".to_string(),
+                                    JSONSchemaProps {
+                                        type_: Some("integer".to_string()),
+                                        ..Default::default()
+                                    },
+                                )]
+                                .into_iter()
+                                .collect(),
+                            ),
+                            ..Default::default()
+                        },
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_valid_manifest_passes_validation() {
+        let crd = make_crd("example.com", "MyResource", "v1", Some(simple_schema()));
+        let manifest = make_manifest_with_data(
+            "example.com/v1",
+            "MyResource",
+            "test-resource",
+            json!({"spec": {"replicas": 3}}),
+        );
+
+        let errors = do_validation(
+            vec![("crd.json".to_string(), crd)],
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert!(errors.is_empty(), "Expected no errors, got: {:?}", errors);
+    }
+
+    #[test]
+    fn test_missing_type_meta() {
+        let crd = make_crd("example.com", "MyResource", "v1", Some(simple_schema()));
+        let manifest = DynamicObject {
+            types: None,
+            metadata: ObjectMeta {
+                name: Some("test-resource".to_string()),
+                ..Default::default()
+            },
+            data: json!({}),
+        };
+
+        let errors = do_validation(
+            vec![("crd.json".to_string(), crd)],
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].to_string().contains("missing TypeMeta"));
+    }
+
+    #[test]
+    fn test_no_matching_version_in_crd() {
+        let crd = make_crd("example.com", "MyResource", "v1", Some(simple_schema()));
+        let manifest = make_manifest("example.com/v2", "MyResource", "test-resource");
+
+        let errors = do_validation(
+            vec![("crd.json".to_string(), crd)],
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].to_string().contains("no matching version"));
+    }
+
+    #[test]
+    fn test_no_schema_in_crd() {
+        let crd = make_crd("example.com", "MyResource", "v1", None);
+        let manifest = make_manifest("example.com/v1", "MyResource", "test-resource");
+
+        let errors = do_validation(
+            vec![("crd.json".to_string(), crd)],
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].to_string().contains("no schema found"));
+    }
+
+    #[test]
+    fn test_validation_error_wrong_type() {
+        let schema = JSONSchemaProps {
+            type_: Some("object".to_string()),
+            properties: Some(
+                [
+                    (
+                        "apiVersion".to_string(),
+                        JSONSchemaProps {
+                            type_: Some("string".to_string()),
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "kind".to_string(),
+                        JSONSchemaProps {
+                            type_: Some("string".to_string()),
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "metadata".to_string(),
+                        JSONSchemaProps {
+                            type_: Some("object".to_string()),
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "spec".to_string(),
+                        JSONSchemaProps {
+                            type_: Some("object".to_string()),
+                            properties: Some(
+                                [(
+                                    "replicas".to_string(),
+                                    JSONSchemaProps {
+                                        type_: Some("integer".to_string()),
+                                        ..Default::default()
+                                    },
+                                )]
+                                .into_iter()
+                                .collect(),
+                            ),
+                            required: Some(vec!["replicas".to_string()]),
+                            ..Default::default()
+                        },
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            required: Some(vec!["spec".to_string()]),
+            ..Default::default()
+        };
+
+        let crd = make_crd("example.com", "MyResource", "v1", Some(schema));
+        // provide replicas as a string instead of an integer
+        let manifest = make_manifest_with_data(
+            "example.com/v1",
+            "MyResource",
+            "test-resource",
+            json!({"spec": {"replicas": "not-a-number"}}),
+        );
+
+        let errors = do_validation(
+            vec![("crd.json".to_string(), crd)],
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].to_string().contains("validation error"));
+    }
+
+    #[test]
+    fn test_no_matching_crd() {
+        let crd = make_crd("example.com", "MyResource", "v1", Some(simple_schema()));
+        let manifest = make_manifest("other.com/v1", "OtherResource", "test-resource");
+
+        let errors = do_validation(
+            vec![("crd.json".to_string(), crd)],
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].to_string().contains("no matching CRD found"));
+    }
+
+    #[test]
+    fn test_core_api_version_without_group() {
+        // test api_version without a group (e.g., "v1" instead of "group/v1")
+        let crd = make_crd("", "Pod", "v1", Some(simple_schema()));
+        let manifest = make_manifest("v1", "Pod", "test-pod");
+
+        let errors = do_validation(
+            vec![("crd.json".to_string(), crd)],
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert!(errors.is_empty(), "Expected no errors, got: {:?}", errors);
+    }
+
+    #[test]
+    fn test_multiple_manifests_multiple_errors() {
+        let crd = make_crd("example.com", "MyResource", "v1", Some(simple_schema()));
+
+        let manifest1 = DynamicObject {
+            types: None,
+            metadata: ObjectMeta {
+                name: Some("no-type-meta".to_string()),
+                ..Default::default()
+            },
+            data: json!({}),
+        };
+
+        let manifest2 = make_manifest("example.com/v2", "MyResource", "wrong-version");
+
+        let errors = do_validation(
+            vec![("crd.json".to_string(), crd)],
+            vec![
+                ("manifest1.json".to_string(), manifest1),
+                ("manifest2.json".to_string(), manifest2),
+            ],
+        );
+
+        assert_eq!(errors.len(), 2);
+        assert!(errors[0].to_string().contains("missing TypeMeta"));
+        assert!(errors[1].to_string().contains("no matching version"));
+    }
+
+    #[test]
+    fn test_multiple_crds_finds_correct_one() {
+        let crd1 = make_crd("example.com", "ResourceA", "v1", Some(simple_schema()));
+        let crd2 = make_crd("example.com", "ResourceB", "v1", Some(simple_schema()));
+        let crd3 = make_crd("other.com", "ResourceA", "v1", Some(simple_schema()));
+
+        let manifest = make_manifest_with_data(
+            "example.com/v1",
+            "ResourceB",
+            "test-resource",
+            json!({"spec": {"replicas": 5}}),
+        );
+
+        let errors = do_validation(
+            vec![
+                ("crd1.json".to_string(), crd1),
+                ("crd2.json".to_string(), crd2),
+                ("crd3.json".to_string(), crd3),
+            ],
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert!(errors.is_empty(), "Expected no errors, got: {:?}", errors);
+    }
+
+    #[test]
+    fn test_empty_manifests_returns_no_errors() {
+        let crd = make_crd("example.com", "MyResource", "v1", Some(simple_schema()));
+
+        let errors = do_validation(vec![("crd.json".to_string(), crd)], vec![]);
+
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_empty_crds_returns_error() {
+        let manifest = make_manifest("example.com/v1", "MyResource", "test-resource");
+
+        let errors = do_validation(vec![], vec![("manifest.json".to_string(), manifest)]);
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].to_string().contains("no matching CRD found"));
+    }
+}
