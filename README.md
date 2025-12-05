@@ -225,3 +225,43 @@ nix build
 ```
 
 Validating and building manifests is simple as that.
+
+## Use CustomResourceDefinition instead
+
+Worried about not having a JSON schema files? No sweat. Kubix can understand `CustomResourceDefinition` YAMLs as well. Just throw your CRD files into Kubix module.
+
+```nix
+# crd.nix
+[
+  {
+    url = "https://raw.githubusercontent.com/cert-manager/cert-manager/02d1e1985e5c94059c5a2c3653b3d98c27a9c8f9/deploy/crds/cert-manager.io_certificates.yaml";
+    hash = "sha256-c73XIW4DLjSCF5aKb02E6FqOdwkGEklWgGFpHXljHxA=";
+  }
+]
+```
+
+```nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    kubix.url = "github:skystar-p/kubix";
+  };
+
+  outputs = inputs@{ nixpkgs, flake-parts, kubix, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
+
+      perSystem = { pkgs, lib, ... }: {
+        packages.default = kubix.lib.buildManifests pkgs {
+          # provide CustomResourceDefinition yamls!
+          crds = import ./crd.nix;
+          manifests = import ./manifest.nix;
+        };
+      };
+    };
+}
+```
+
+It is simple as that.
