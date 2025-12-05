@@ -2,7 +2,6 @@
   pkgs,
   lib,
   config,
-  flake,
   ...
 }:
 let
@@ -17,8 +16,8 @@ let
 
   schemaDir = pkgs.runCommand "schema-dir" { } (
     lib.concatStringsSep "\n" (
-      [ "mkdir -p $out" ] ++
-      lib.map (v: ''
+      [ "mkdir -p $out" ]
+      ++ lib.map (v: ''
         mkdir -p "$out/${v.resolvedApiVersion}"
         cp "${fetch v}" "$out/${v.resolvedApiVersion}/${v.kind}.json"
       '') config.kubix.schemas
@@ -32,7 +31,7 @@ let
     }) config.kubix.crds
   );
 
-  validatorPkg = flake.packages.${pkgs.system}.kubix-validator;
+  validatorPkg = pkgs.callPackage ../pkgs/kubix-validator.nix { };
 in
 {
 

@@ -1,7 +1,6 @@
 {
   pkgs,
   lib,
-  flake,
   ...
 }:
 let
@@ -13,7 +12,7 @@ let
           ../modules/kubix.nix
           {
             _module.args = {
-              inherit pkgs lib flake;
+              inherit pkgs lib;
               config = { };
             };
           }

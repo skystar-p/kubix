@@ -2,7 +2,6 @@
   pkgs,
   lib,
   config,
-  flake,
   ...
 }:
 let
@@ -14,9 +13,6 @@ let
         { name, config, ... }:
         let
           cfg = config;
-          hasApiVersion = cfg.apiVersion != null;
-          hasGroup = cfg.group != null;
-          hasVersion = cfg.version != null;
         in
         {
           options = {
@@ -84,7 +80,6 @@ let
       pkgs
       lib
       config
-      flake
       ;
   };
 in
@@ -115,7 +110,8 @@ in
   config = lib.mkIf cfg.enable {
     kubix.result =
       let
-        validateSchemas = lib.imap0 (i: schema:
+        validateSchemas = lib.imap0 (
+          i: schema:
           let
             hasApiVersion = schema.apiVersion != null;
             hasGroup = schema.group != null;
@@ -123,11 +119,15 @@ in
           in
           lib.throwIf (!(hasApiVersion != (hasGroup || hasVersion)))
             "Schema ${toString i}: Either 'apiVersion' OR 'group'/'version' must be specified, not both"
-          (lib.throwIf (!(hasGroup == hasVersion))
-            "Schema ${toString i}: 'group' and 'version' must be specified together"
-          (lib.throwIf (!(hasApiVersion || (hasGroup && hasVersion)))
-            "Schema ${toString i}: Must specify either 'apiVersion' or both 'group' and 'version'"
-          schema))
+            (
+              lib.throwIf (!(hasGroup == hasVersion))
+                "Schema ${toString i}: 'group' and 'version' must be specified together"
+                (
+                  lib.throwIf (
+                    !(hasApiVersion || (hasGroup && hasVersion))
+                  ) "Schema ${toString i}: Must specify either 'apiVersion' or both 'group' and 'version'" schema
+                )
+            )
         ) cfg.schemas;
       in
       builtins.seq (builtins.deepSeq validateSchemas null) validatorLib.output;
