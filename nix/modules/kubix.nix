@@ -39,7 +39,7 @@ let
             };
 
             kind = lib.mkOption {
-              type = lib.types.str;
+              type = lib.types.addCheck lib.types.str (s: s != "");
               description = "kind of the schema";
             };
 
