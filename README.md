@@ -7,6 +7,26 @@ A Kubernetes manifest generator using Nix.
 Write your Kubernetes manifest with your familiar Nix language, like this.
 
 ```nix
+# manifest.nix
+{
+  example-configmap = {
+    apiVersion = "v1";
+    kind = "ConfigMap";
+    metadata = {
+      name = "example-configmap";
+      namespace = "default";
+    };
+    data = {
+      "example.property.1" = "value1";
+      "example.property.2" = "value2";
+    };
+  };
+}
+```
+
+and use it in your flake.
+```nix
+# flake.nix
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -19,21 +39,9 @@ Write your Kubernetes manifest with your familiar Nix language, like this.
       systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
 
       perSystem = { pkgs, lib, ... }: {
+        # use `kubix.lib.buildManifests` to verify the manifest and produce output!
         packages.default = kubix.lib.buildManifests pkgs {
-          manifests = {
-            example-configmap = {
-              apiVersion = "v1";
-              kind = "ConfigMap";
-              metadata = {
-                name = "example-configmap";
-                namespace = "default";
-              };
-              data = {
-                "example.property.1" = "value1";
-                "example.property.2" = "value2";
-              };
-            };
-          };
+          manifests = import ./manifest.nix;
         };
       };
     };
