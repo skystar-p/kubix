@@ -36,8 +36,8 @@ in
       {
         apiVersion = "v1";
         kind = "ConfigMap";
-        url = "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/master-standalone/configmap-v1.json";
-        hash = "sha256-HueXSGPS7OTc5/zHuxGh1hGcRuBM/CDA+cDh4+Pw1yE=";
+        url = "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/master-standalone-strict/configmap-v1.json";
+        hash = "sha256-4Ord69Z3wIqgkrLaImTYasT8NO7RErn6wpRbPwDB6bE=";
       }
     ];
     manifests = {
@@ -48,7 +48,7 @@ in
           name = "example-configmap";
           namespace = "default";
         };
-        stringData = {
+        data = {
           "example.property.1" = "value1";
           "example.property.2" = "value2";
         };
