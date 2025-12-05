@@ -34,7 +34,6 @@ let
   validatorPkg = pkgs.callPackage ../pkgs/kubix-validator { };
 in
 {
-
   output =
     pkgs.runCommand "validator"
       {

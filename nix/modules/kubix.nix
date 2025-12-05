@@ -87,6 +87,12 @@ in
   options.kubix = {
     enable = lib.mkEnableOption "Enable kubix module";
 
+    kubernetesVersion = lib.mkOption {
+      type = lib.types.str;
+      description = "kubernetes version to target. used for selecting appropriate predefined schemas.";
+      default = "1.34";
+    };
+
     schemas = schemasOption;
 
     crds = lib.mkOption {
@@ -124,7 +130,7 @@ in
   config = lib.mkIf cfg.enable {
     kubix.result =
       let
-        validateSchemas = lib.imap0 (
+        validateSchemaGVK = lib.imap0 (
           i: schema:
           let
             hasApiVersion = schema.apiVersion != null;
@@ -144,6 +150,6 @@ in
             )
         ) cfg.schemas;
       in
-      builtins.seq (builtins.deepSeq validateSchemas null) validatorLib.output;
+      builtins.seq (builtins.deepSeq validateSchemaGVK null) validatorLib.output;
   };
 }
