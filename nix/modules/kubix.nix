@@ -9,7 +9,7 @@ let
   cfg = config.kubix;
 
   schemasOption = lib.mkOption {
-    type = lib.types.attrsOf (
+    type = lib.types.listOf (
       lib.types.submodule (
         { name, config, ... }:
         let
@@ -80,7 +80,7 @@ let
       )
     );
     description = "list of schemas to fetch and include";
-    default = { };
+    default = [ ];
   };
 
   crdOptions = {
