@@ -15,11 +15,14 @@ let
     }) config.kubix.manifests
   );
 
-  schemaDir = pkgs.linkFarm "schema-dir" (
-    lib.map (v: {
-      name = "${v.resolvedApiVersion}-${v.kind}";
-      path = "${v.resolvedApiVersion}/${v.kind}/${fetch v}";
-    }) config.kubix.schemas
+  schemaDir = pkgs.runCommand "schema-dir" { } (
+    lib.concatStringsSep "\n" (
+      [ "mkdir -p $out" ] ++
+      lib.map (v: ''
+        mkdir -p "$out/${v.resolvedApiVersion}"
+        cp "${fetch v}" "$out/${v.resolvedApiVersion}/${v.kind}.json"
+      '') config.kubix.schemas
+    )
   );
 
   crdDir = pkgs.linkFarm "crd-dir" (
