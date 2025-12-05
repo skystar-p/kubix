@@ -75,4 +75,31 @@ in
       };
     };
   };
+
+  certManagerCertificateWithCrd = mkModuleTest {
+    crds = [
+      {
+        url = "https://raw.githubusercontent.com/cert-manager/cert-manager/02d1e1985e5c94059c5a2c3653b3d98c27a9c8f9/deploy/crds/cert-manager.io_certificates.yaml";
+        hash = "sha256-c73XIW4DLjSCF5aKb02E6FqOdwkGEklWgGFpHXljHxA=";
+      }
+    ];
+    manifests = {
+      example-certificate = {
+        apiVersion = "cert-manager.io/v1";
+        kind = "Certificate";
+        metadata = {
+          name = "example-com-tls";
+          namespace = "default";
+        };
+        spec = {
+          secretName = "example-com-tls";
+          dnsNames = [ "example.com" ];
+          issuerRef = {
+            name = "letsencrypt-prod";
+            kind = "ClusterIssuer";
+          };
+        };
+      };
+    };
+  };
 }
