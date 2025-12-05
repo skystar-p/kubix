@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::bail;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
@@ -11,6 +11,10 @@ struct Arguments {
     #[argh(option, short = 'c')]
     crd_dir: PathBuf,
 
+    /// directory containing json schema files, in json format
+    #[argh(option, short = 's')]
+    schema_dir: PathBuf,
+
     /// directory containing resource manifest files to validate, in json format
     #[argh(option, short = 'm')]
     manifest_dir: PathBuf,
@@ -20,9 +24,10 @@ fn main() -> anyhow::Result<()> {
     let args: Arguments = argh::from_env();
 
     let crds: Vec<(String, CustomResourceDefinition)> = try_parse_directory_files(&args.crd_dir)?;
+    let schemas: BTreeMap<SchemaKey, serde_json::Value> = try_parse_schema_files(&args.schema_dir)?;
     let manifests: Vec<(String, DynamicObject)> = try_parse_directory_files(&args.manifest_dir)?;
 
-    let errors = do_validation(crds, manifests);
+    let errors = do_validation(crds, schemas, manifests);
 
     if !errors.is_empty() {
         for error in &errors {
@@ -37,11 +42,12 @@ fn main() -> anyhow::Result<()> {
 
 fn do_validation(
     crds: Vec<(String, CustomResourceDefinition)>,
+    schemas: BTreeMap<SchemaKey, serde_json::Value>,
     manifests: Vec<(String, DynamicObject)>,
 ) -> Vec<anyhow::Error> {
     let mut errors = Vec::new();
 
-    // verify each manifest against the CRDs
+    // verify each manifest against the CRDs and json schemas
     for (name, manifest) in manifests {
         let Ok(manifest_value) = serde_json::to_value(&manifest) else {
             errors.push(anyhow::anyhow!(
@@ -62,96 +68,40 @@ fn do_validation(
         let (group, version) = if let Some((g, v)) = api_version.rsplit_once('/') {
             (g.to_string(), v.to_string())
         } else {
-            ("".to_string(), api_version)
+            ("".to_string(), api_version.clone())
         };
 
-        // find matching CRD
-        let mut crd_found = false;
-        for (_, crd) in &crds {
-            let crd_name = crd.metadata.name.clone().unwrap_or_default();
-            let crd_group = crd.spec.group.clone();
-            let crd_kind = crd.spec.names.kind.clone();
-
-            if crd_group != group || crd_kind != kind {
-                continue;
+        // find matching schema
+        let schema_key = (api_version.clone(), kind.clone());
+        if let Some(schema) = schemas.get(&schema_key) {
+            // validate against schema
+            if let Err(e) = validate_against_schema(schema, &manifest_value, &name) {
+                errors.push(e);
             }
-
-            crd_found = true;
-
-            // find matching version
-            let version_found = crd
-                .spec
-                .versions
-                .iter()
-                .find(|v| v.name == version)
-                .cloned();
-
-            let Some(version_spec) = version_found else {
-                errors.push(anyhow::anyhow!(
-                    "{:?}: no matching version {:?} in CRD {:?}",
-                    name,
-                    version,
-                    crd_name
-                ));
-                continue;
-            };
-
-            let schema = if let Some(schema) = version_spec.schema {
-                schema
-            } else {
-                errors.push(anyhow::anyhow!(
-                    "{:?}: no schema found in CRD {:?} version {:?}",
-                    name,
-                    crd_name,
-                    version
-                ));
-                continue;
-            };
-
-            let schema = if let Some(open_api_v3_schema) = schema.open_api_v3_schema {
-                open_api_v3_schema
-            } else {
-                errors.push(anyhow::anyhow!(
-                    "{:?}: no OpenAPI v3 schema found in CRD {:?} version {:?}",
-                    name,
-                    crd_name,
-                    version
-                ));
-                continue;
-            };
-
-            // do validation
-            let Ok(schema) = serde_json::to_value(&schema) else {
-                errors.push(anyhow::anyhow!(
-                    "{:?}: empty schema in CRD {:?} version {:?}",
-                    name,
-                    crd_name,
-                    version
-                ));
-                continue;
-            };
-            let Ok(validator) = jsonschema::validator_for(&schema) else {
-                errors.push(anyhow::anyhow!(
-                    "{:?}: failed to create validator for CRD {:?} version {:?}",
-                    name,
-                    crd_name,
-                    version
-                ));
-                continue;
-            };
-            let result = validator.validate(&manifest_value);
-            if let Err(e) = result {
-                let instance_path = e.instance_path().to_string();
-                errors.push(anyhow::anyhow!(
-                    "{:?}: validation error at {}: {}",
-                    name,
-                    instance_path,
-                    e
-                ));
-            }
+            continue;
         }
 
-        if !crd_found {
+        // if no schema found, try to validate against CRDs
+        let results = crds
+            .iter()
+            .map(|(_, crd)| {
+                validate_against_crd(crd, &manifest_value, &name, &group, &version, &kind)
+            })
+            .collect::<Vec<_>>();
+        let matched = results.iter().any(|res| match res {
+            Ok(validated) => *validated,
+            Err(_) => false,
+        });
+        let errors_from_crds: Vec<anyhow::Error> = results
+            .into_iter()
+            .filter_map(|res| match res {
+                Ok(_) => None,
+                Err(e) => Some(e),
+            })
+            .collect();
+        errors.extend(errors_from_crds);
+
+        if !matched {
             errors.push(anyhow::anyhow!(
                 "{:?}: no matching CRD found for {}/{}",
                 name,
@@ -198,6 +148,146 @@ fn try_parse_directory_files<T: serde::de::DeserializeOwned>(
     }
 
     Ok(items)
+}
+
+type SchemaKey = (String, String); // (apiVersion, kind)
+
+fn try_parse_schema_files(dir: &PathBuf) -> anyhow::Result<BTreeMap<SchemaKey, serde_json::Value>> {
+    let mut schemas = BTreeMap::new();
+    if !dir.is_dir() {
+        bail!("directory does not exist or is not a directory");
+    }
+    // schema file should be in <dir>/<apiVersion>/<kind>.json
+
+    for entry in std::fs::read_dir(dir)? {
+        let entry_path = entry?.path();
+        if !entry_path.is_dir() {
+            continue;
+        }
+
+        // this entry_path is apiVersion
+        let api_version = entry_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .ok_or(anyhow::anyhow!("invalid apiVersion directory name"))?
+            .to_string();
+
+        for kind_entry in std::fs::read_dir(&entry_path)? {
+            let kind_entry_path = kind_entry?.path();
+            if kind_entry_path.is_dir() {
+                continue;
+            }
+            let kind = kind_entry_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .ok_or(anyhow::anyhow!("invalid kind file name"))?
+                .to_string();
+            let content = std::fs::read(&kind_entry_path)?;
+            let schema_value: serde_json::Value = serde_json::from_slice(&content)?;
+            schemas.insert((api_version.clone(), kind.clone()), schema_value);
+        }
+    }
+
+    Ok(schemas)
+}
+
+fn validate_against_schema(
+    schema: &serde_json::Value,
+    manifest_value: &serde_json::Value,
+    name: &str,
+) -> Result<(), anyhow::Error> {
+    let Ok(validator) = jsonschema::validator_for(schema) else {
+        bail!("{:?}: failed to create schema validator", name)
+    };
+    let result = validator.validate(manifest_value);
+    if let Err(e) = result {
+        let instance_path = e.instance_path().to_string();
+        bail!("{:?}: validation error at {}: {}", name, instance_path, e)
+    }
+
+    Ok(())
+}
+
+fn validate_against_crd(
+    crd: &CustomResourceDefinition,
+    manifest_value: &serde_json::Value,
+    name: &str,
+    group: &str,
+    version: &str,
+    kind: &str,
+) -> Result<bool, anyhow::Error> {
+    let crd_name = crd.metadata.name.clone().unwrap_or_default();
+    let crd_group = crd.spec.group.clone();
+    let crd_kind = crd.spec.names.kind.clone();
+
+    if crd_group != group || crd_kind != kind {
+        // not a match, skip
+        return Ok(false);
+    }
+
+    // find matching version
+    let version_found = crd
+        .spec
+        .versions
+        .iter()
+        .find(|v| v.name == version)
+        .cloned();
+
+    let Some(version_spec) = version_found else {
+        bail!(
+            "{:?}: no matching version {:?} in CRD {:?}",
+            name,
+            version,
+            crd_name
+        )
+    };
+
+    let schema = if let Some(schema) = version_spec.schema {
+        schema
+    } else {
+        bail!(
+            "{:?}: no schema found in CRD {:?} version {:?}",
+            name,
+            crd_name,
+            version
+        );
+    };
+
+    let schema = if let Some(open_api_v3_schema) = schema.open_api_v3_schema {
+        open_api_v3_schema
+    } else {
+        bail!(
+            "{:?}: no OpenAPI v3 schema found in CRD {:?} version {:?}",
+            name,
+            crd_name,
+            version
+        )
+    };
+
+    // do validation
+    let Ok(schema) = serde_json::to_value(&schema) else {
+        bail!(
+            "{:?}: empty schema in CRD {:?} version {:?}",
+            name,
+            crd_name,
+            version
+        )
+    };
+    let Ok(validator) = jsonschema::validator_for(&schema) else {
+        bail!(
+            "{:?}: failed to create validator for CRD {:?} version {:?}",
+            name,
+            crd_name,
+            version
+        )
+    };
+    let result = validator.validate(&manifest_value);
+    if let Err(e) = result {
+        let instance_path = e.instance_path().to_string();
+        bail!("{:?}: validation error at {}: {}", name, instance_path, e)
+    }
+
+    Ok(true)
 }
 
 #[cfg(test)]
