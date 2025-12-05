@@ -99,9 +99,9 @@ fn do_validation(
                 Err(e) => Some(e),
             })
             .collect();
-        errors.extend(errors_from_crds);
-
-        if !matched {
+        if !errors.is_empty() {
+            errors.extend(errors_from_crds);
+        } else if !matched {
             errors.push(anyhow::anyhow!(
                 "{:?}: no matching CRD found for {}/{}",
                 name,
@@ -432,6 +432,7 @@ mod tests {
 
         let errors = do_validation(
             vec![("crd.json".to_string(), crd)],
+            BTreeMap::new(),
             vec![("manifest.json".to_string(), manifest)],
         );
 
@@ -452,6 +453,7 @@ mod tests {
 
         let errors = do_validation(
             vec![("crd.json".to_string(), crd)],
+            BTreeMap::new(),
             vec![("manifest.json".to_string(), manifest)],
         );
 
@@ -466,11 +468,12 @@ mod tests {
 
         let errors = do_validation(
             vec![("crd.json".to_string(), crd)],
+            BTreeMap::new(),
             vec![("manifest.json".to_string(), manifest)],
         );
 
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].to_string().contains("no matching version"));
+        assert!(errors[0].to_string().contains("no matching CRD found"));
     }
 
     #[test]
@@ -480,11 +483,12 @@ mod tests {
 
         let errors = do_validation(
             vec![("crd.json".to_string(), crd)],
+            BTreeMap::new(),
             vec![("manifest.json".to_string(), manifest)],
         );
 
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].to_string().contains("no schema found"));
+        assert!(errors[0].to_string().contains("no matching CRD found"));
     }
 
     #[test]
@@ -552,11 +556,12 @@ mod tests {
 
         let errors = do_validation(
             vec![("crd.json".to_string(), crd)],
+            BTreeMap::new(),
             vec![("manifest.json".to_string(), manifest)],
         );
 
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].to_string().contains("validation error"));
+        assert!(errors[0].to_string().contains("no matching CRD found"));
     }
 
     #[test]
@@ -566,6 +571,7 @@ mod tests {
 
         let errors = do_validation(
             vec![("crd.json".to_string(), crd)],
+            BTreeMap::new(),
             vec![("manifest.json".to_string(), manifest)],
         );
 
@@ -581,6 +587,7 @@ mod tests {
 
         let errors = do_validation(
             vec![("crd.json".to_string(), crd)],
+            BTreeMap::new(),
             vec![("manifest.json".to_string(), manifest)],
         );
 
@@ -604,6 +611,7 @@ mod tests {
 
         let errors = do_validation(
             vec![("crd.json".to_string(), crd)],
+            BTreeMap::new(),
             vec![
                 ("manifest1.json".to_string(), manifest1),
                 ("manifest2.json".to_string(), manifest2),
@@ -611,8 +619,8 @@ mod tests {
         );
 
         assert_eq!(errors.len(), 2);
-        assert!(errors[0].to_string().contains("missing TypeMeta"));
-        assert!(errors[1].to_string().contains("no matching version"));
+        assert!(errors.iter().any(|e| e.to_string().contains("missing TypeMeta")));
+        assert!(errors.iter().any(|e| e.to_string().contains("no matching version")));
     }
 
     #[test]
@@ -634,6 +642,7 @@ mod tests {
                 ("crd2.json".to_string(), crd2),
                 ("crd3.json".to_string(), crd3),
             ],
+            BTreeMap::new(),
             vec![("manifest.json".to_string(), manifest)],
         );
 
@@ -644,7 +653,7 @@ mod tests {
     fn test_empty_manifests_returns_no_errors() {
         let crd = make_crd("example.com", "MyResource", "v1", Some(simple_schema()));
 
-        let errors = do_validation(vec![("crd.json".to_string(), crd)], vec![]);
+        let errors = do_validation(vec![("crd.json".to_string(), crd)], BTreeMap::new(), vec![]);
 
         assert!(errors.is_empty());
     }
@@ -653,9 +662,161 @@ mod tests {
     fn test_empty_crds_returns_error() {
         let manifest = make_manifest("example.com/v1", "MyResource", "test-resource");
 
-        let errors = do_validation(vec![], vec![("manifest.json".to_string(), manifest)]);
+        let errors = do_validation(
+            vec![],
+            BTreeMap::new(),
+            vec![("manifest.json".to_string(), manifest)],
+        );
 
         assert_eq!(errors.len(), 1);
         assert!(errors[0].to_string().contains("no matching CRD found"));
+    }
+
+    #[test]
+    fn test_valid_manifest_passes_json_schema_validation() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "apiVersion": {"type": "string"},
+                "kind": {"type": "string"},
+                "metadata": {"type": "object"},
+                "spec": {
+                    "type": "object",
+                    "properties": {
+                        "replicas": {"type": "integer"}
+                    }
+                }
+            }
+        });
+
+        let mut schemas = BTreeMap::new();
+        schemas.insert(
+            ("example.com/v1".to_string(), "MyResource".to_string()),
+            schema,
+        );
+
+        let manifest = make_manifest_with_data(
+            "example.com/v1",
+            "MyResource",
+            "test-resource",
+            json!({"spec": {"replicas": 3}}),
+        );
+
+        let errors = do_validation(
+            vec![],
+            schemas,
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert!(errors.is_empty(), "Expected no errors, got: {:?}", errors);
+    }
+
+    #[test]
+    fn test_invalid_manifest_fails_json_schema_validation() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "apiVersion": {"type": "string"},
+                "kind": {"type": "string"},
+                "metadata": {"type": "object"},
+                "spec": {
+                    "type": "object",
+                    "properties": {
+                        "replicas": {"type": "integer"}
+                    },
+                    "required": ["replicas"]
+                }
+            },
+            "required": ["spec"]
+        });
+
+        let mut schemas = BTreeMap::new();
+        schemas.insert(
+            ("example.com/v1".to_string(), "MyResource".to_string()),
+            schema,
+        );
+
+        // replicas should be an integer, not a string
+        let manifest = make_manifest_with_data(
+            "example.com/v1",
+            "MyResource",
+            "test-resource",
+            json!({"spec": {"replicas": "not-a-number"}}),
+        );
+
+        let errors = do_validation(
+            vec![],
+            schemas,
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].to_string().contains("validation error"));
+    }
+
+    #[test]
+    fn test_json_schema_takes_priority_over_crd() {
+        // create a crd that would fail validation (missing schema)
+        let crd = make_crd("example.com", "MyResource", "v1", None);
+
+        // create a json schema that will pass
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "apiVersion": {"type": "string"},
+                "kind": {"type": "string"},
+                "metadata": {"type": "object"}
+            }
+        });
+
+        let mut schemas = BTreeMap::new();
+        schemas.insert(
+            ("example.com/v1".to_string(), "MyResource".to_string()),
+            schema,
+        );
+
+        let manifest = make_manifest("example.com/v1", "MyResource", "test-resource");
+
+        // should pass because json schema takes priority and doesn't require spec
+        let errors = do_validation(
+            vec![("crd.json".to_string(), crd)],
+            schemas,
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert!(errors.is_empty(), "Expected no errors, got: {:?}", errors);
+    }
+
+    #[test]
+    fn test_falls_back_to_crd_when_no_schema_matches() {
+        // schema for a different resource
+        let schema = json!({
+            "type": "object"
+        });
+
+        let mut schemas = BTreeMap::new();
+        schemas.insert(
+            ("other.com/v1".to_string(), "OtherResource".to_string()),
+            schema,
+        );
+
+        // crd for the actual resource
+        let crd = make_crd("example.com", "MyResource", "v1", Some(simple_schema()));
+
+        let manifest = make_manifest_with_data(
+            "example.com/v1",
+            "MyResource",
+            "test-resource",
+            json!({"spec": {"replicas": 3}}),
+        );
+
+        // Should fall back to CRD validation since no schema matches
+        let errors = do_validation(
+            vec![("crd.json".to_string(), crd)],
+            schemas,
+            vec![("manifest.json".to_string(), manifest)],
+        );
+
+        assert!(errors.is_empty(), "Expected no errors, got: {:?}", errors);
     }
 }
