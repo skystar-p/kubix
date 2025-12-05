@@ -2,6 +2,7 @@
   pkgs,
   lib,
   config,
+  flake,
   ...
 }:
 let
@@ -27,6 +28,8 @@ let
       path = fetchSchema v;
     }) config.kubix.schemas
   );
+
+  validatorPkg = flake.packages.${pkgs.system}.kubix-validator;
 in
 {
 
@@ -34,9 +37,18 @@ in
     pkgs.runCommand "validator"
       {
         env = { inherit manifestDir crdDir schemaDir; };
-        nativeBuildInputs = [ ];
+        nativeBuildInputs = [ validatorPkg ];
       }
       ''
-        TODO
+        set -euo pipefail
+        mkdir -p $out/{manifests,crds,schemas}
+        cp -r $manifestDir/* $out/manifests/
+        cp -r $crdDir/* $out/crds/
+        cp -r $schemaDir/* $out/schemas/
+
+        kubix-validator \
+          # --schemas-dir $out/schemas \
+          --manifest-dir $out/manifests \
+          --crd-dir $out/crds
       '';
 }

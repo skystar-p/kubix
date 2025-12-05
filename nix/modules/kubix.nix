@@ -2,6 +2,7 @@
   pkgs,
   lib,
   config,
+  flake,
   ...
 }:
 let
@@ -20,7 +21,14 @@ let
     };
   };
 
-  validatorLib = import ../lib/validator.nix { inherit pkgs lib config; };
+  validatorLib = import ../lib/validator.nix {
+    inherit
+      pkgs
+      lib
+      config
+      flake
+      ;
+  };
 in
 {
   options.kubix = {

@@ -40,6 +40,7 @@
           };
         in
         {
+          _module.args.flake = self;
           packages = {
             kubix-validator = pkgs.callPackage ./nix/pkgs/kubix-validator.nix { inherit rustPlatform; };
           };
