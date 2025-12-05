@@ -8,40 +8,72 @@
 let
   cfg = config.kubix;
 
-  schemaOptions = {
-    options = {
-      apiVersion = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "apiVersion of the schema";
-      };
+  schemasOption = lib.mkOption {
+    type = lib.types.attrsOf (
+      lib.types.submodule (
+        { name, config, ... }:
+        let
+          cfg = config;
+          hasApiVersion = cfg.apiVersion != null;
+          hasGroup = cfg.group != null;
+          hasVersion = cfg.version != null;
+        in
+        {
+          options = {
+            apiVersion = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "apiVersion of the schema";
+            };
 
-      group = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "group of the schema";
-      };
+            group = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "group of the schema";
+            };
 
-      version = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "version of the schema";
-      };
+            version = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = "version of the schema";
+            };
 
-      kind = lib.mkOption {
-        type = lib.types.str;
-        description = "kind of the schema";
-      };
+            kind = lib.mkOption {
+              type = lib.types.str;
+              description = "kind of the schema";
+            };
 
-      url = lib.mkOption {
-        type = lib.types.str;
-        description = "url to the crd file";
-      };
-      hash = lib.mkOption {
-        type = lib.types.str;
-        description = "hash of the crd file";
-      };
-    };
+            url = lib.mkOption {
+              type = lib.types.str;
+              description = "url to the crd file";
+            };
+            hash = lib.mkOption {
+              type = lib.types.str;
+              description = "hash of the crd file";
+            };
+          };
+
+          config = {
+            assertions = [
+              {
+                assertion = hasApiVersion != (hasGroup || hasVersion);
+                message = "Resource '${name}': Either 'apiVersion' OR 'group'/'version' must be specified, not both";
+              }
+              {
+                assertion = hasGroup == hasVersion;
+                message = "Resource '${name}': 'group' and 'version' must be specified together";
+              }
+              {
+                assertion = hasApiVersion || (hasGroup && hasVersion);
+                message = "Resource '${name}': Must specify either 'apiVersion' or both 'group' and 'version'";
+              }
+            ];
+          };
+        }
+      )
+    );
+    description = "list of schemas to fetch and include";
+    default = { };
   };
 
   crdOptions = {
@@ -70,11 +102,7 @@ in
   options.kubix = {
     enable = lib.mkEnableOption "Enable kubix module";
 
-    schemas = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.submodule schemaOptions);
-      description = "list of json schemas to fetch and include";
-      default = { };
-    };
+    schemas = schemasOption;
 
     crds = lib.mkOption {
       type = lib.types.attrsOf (lib.types.submodule crdOptions);
@@ -95,21 +123,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    assertions = [
-      {
-        assertion = (cfg.apiVersion != null) != (cfg.group != null || cfg.version != null);
-        message = "Either 'apiVersion' OR both 'group' and 'version' must be specified, not both";
-      }
-      {
-        assertion = (cfg.group != null) == (cfg.version != null);
-        message = "'group' and 'version' must be specified together";
-      }
-      {
-        assertion = cfg.apiVersion != null || (cfg.group != null && cfg.version != null);
-        message = "Must specify either 'apiVersion' or both 'group' and 'version'";
-      }
-    ];
-
     kubix = {
       result = validatorLib.output;
     };
