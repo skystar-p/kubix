@@ -65,11 +65,13 @@ let
     )
   );
 
-  crdDir = pkgs.linkFarm "crd-dir" (
-    lib.imap0 (i: v: {
-      name = "crd-${toString i}.yaml";
-      path = fetch v;
-    }) config.kubix.crds
+  crdDir = pkgs.runCommand "crd-dir" { nativeBuildInputs = [ pkgs.yq-go ]; } (
+    lib.concatStringsSep "\n" (
+      [ "mkdir -p $out" ]
+      ++ lib.imap0 (i: v: ''
+        yq -o=json '.' "${fetch v}" > "$out/crd-${toString i}.json"
+      '') config.kubix.crds
+    )
   );
 
   validatorPkg = pkgs.callPackage ../pkgs/kubix-validator { };
