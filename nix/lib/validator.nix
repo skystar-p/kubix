@@ -42,12 +42,11 @@ in
       ''
         set -euo pipefail
         mkdir -p $out/{manifests,crds,schemas}
-        cp -r $manifestDir/* $out/manifests/
-        cp -r $crdDir/* $out/crds/
-        cp -r $schemaDir/* $out/schemas/
+        cp -r $manifestDir/. $out/manifests/
+        cp -r $crdDir/. $out/crds/
+        cp -r $schemaDir/. $out/schemas/
 
         kubix-validator \
-          # --schemas-dir $out/schemas \
           --manifest-dir $out/manifests \
           --crd-dir $out/crds
       '';
