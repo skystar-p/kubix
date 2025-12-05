@@ -200,8 +200,11 @@ fn validate_against_schema(
     manifest_value: &serde_json::Value,
     name: &str,
 ) -> Result<(), anyhow::Error> {
-    let Ok(validator) = jsonschema::validator_for(schema) else {
-        bail!("{:?}: failed to create schema validator", name)
+    let validator = match jsonschema::validator_for(schema) {
+        Ok(validator) => validator,
+        Err(e) => {
+            bail!("{:?}: failed to create schema validator: {:?}", name, e)
+        }
     };
     let result = validator.validate(manifest_value);
     if let Err(e) = result {
