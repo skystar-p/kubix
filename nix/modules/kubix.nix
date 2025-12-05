@@ -51,6 +51,11 @@ in
       description = "manifests definition";
       default = { };
     };
+
+    result = lib.mkOption {
+      type = lib.types.package;
+      description = "validated manifest result";
+    };
   };
 
   config = {
