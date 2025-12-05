@@ -176,6 +176,9 @@ fn try_parse_schema_files(dir: &PathBuf) -> anyhow::Result<BTreeMap<SchemaKey, s
             .ok_or(anyhow::anyhow!("invalid apiVersion directory name"))?
             .to_string();
 
+        // '/' is convereted to '_' in file system names, convert back
+        let api_version = api_version.replace('_', "/");
+
         for kind_entry in std::fs::read_dir(&entry_path)? {
             let kind_entry_path = kind_entry?.path();
             if kind_entry_path.is_dir() {

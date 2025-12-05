@@ -21,7 +21,7 @@ let
   );
 
   userSchemaTypes = lib.map (schema: {
-    apiVersion = schema.resolvedApiVersion;
+    apiVersion = schema.apiVersion;
     kind = schema.kind;
   }) config.kubix.schemas;
 
@@ -42,8 +42,7 @@ let
   allSchemas = lib.concatLists [
     config.kubix.schemas
     (lib.map (schema: {
-      apiVersion = schema.resolvedApiVersion;
-      resolvedApiVersion = schema.apiVersion;
+      apiVersion = schema.apiVersion;
       kind = schema.kind;
       url = schema.url;
       hash = schema.hash;
@@ -53,10 +52,16 @@ let
   schemaDir = pkgs.runCommand "schema-dir" { } (
     lib.concatStringsSep "\n" (
       [ "mkdir -p $out" ]
-      ++ lib.map (v: ''
-        mkdir -p "$out/${v.resolvedApiVersion}"
-        cp "${fetch v}" "$out/${v.resolvedApiVersion}/${v.kind}.json"
-      '') allSchemas
+      ++ lib.map (
+        v:
+        let
+          normalizedApiVersion = lib.replaceStrings [ "/" ] [ "_" ] v.apiVersion;
+        in
+        ''
+          mkdir -p "$out/${normalizedApiVersion}"
+          cp "${fetch v}" "$out/${normalizedApiVersion}/${v.kind}.json"
+        ''
+      ) allSchemas
     )
   );
 
