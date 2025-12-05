@@ -96,7 +96,21 @@ in
     };
 
     manifests = lib.mkOption {
-      type = lib.types.attrsOf lib.types.attrs;
+      type = lib.types.attrsOf (
+        lib.types.submodule {
+          freeformType = lib.types.attrs;
+          options = {
+            apiVersion = lib.mkOption {
+              type = lib.types.str;
+              description = "apiVersion of the manifest";
+            };
+            kind = lib.mkOption {
+              type = lib.types.str;
+              description = "kind of the manifest";
+            };
+          };
+        }
+      );
       description = "manifests definition";
       default = { };
     };
