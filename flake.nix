@@ -27,7 +27,12 @@
       ];
 
       perSystem =
-        { pkgs, system, ... }:
+        {
+          pkgs,
+          lib,
+          system,
+          ...
+        }:
         let
           rust-toolchain = fenix.packages.${system}.fromToolchainFile {
             file = ./validator/rust-toolchain.toml;
@@ -49,6 +54,11 @@
             nativeBuildInputs = [
               rust-toolchain
             ];
+          };
+
+          checks = import ./nix/tests {
+            inherit pkgs lib;
+            flake = self;
           };
         };
     };

@@ -1,0 +1,51 @@
+{
+  pkgs,
+  lib,
+  flake,
+  ...
+}:
+let
+  mkModuleTest =
+    testConfig:
+    let
+      eval = lib.evalModules {
+        modules = [
+          ../modules/kubix.nix
+          {
+            _module.args = {
+              inherit pkgs lib flake;
+              config = { };
+            };
+          }
+          {
+            kubix = (
+              {
+                enable = true;
+              }
+              // testConfig
+            );
+          }
+        ];
+      };
+    in
+    eval.config.kubix.result;
+in
+{
+  manifestTest = mkModuleTest {
+    # TODO
+    manifests = {
+      example-configmap = {
+        apiVersion = "v1";
+        kind = "ConfigMap";
+        metadata = {
+          name = "example-configmap";
+          namespace = "default";
+        };
+        stringData = {
+          "example.property.1" = "value1";
+          "example.property.2" = "value2";
+        };
+      };
+    };
+  };
+}
