@@ -31,7 +31,7 @@ let
     }) config.kubix.crds
   );
 
-  validatorPkg = pkgs.callPackage ../pkgs/kubix-validator.nix { };
+  validatorPkg = pkgs.callPackage ../pkgs/kubix-validator { };
 in
 {
 

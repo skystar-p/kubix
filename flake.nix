@@ -56,7 +56,7 @@
         }:
         {
           packages = {
-            kubix-validator = pkgs.callPackage ./nix/pkgs/kubix-validator.nix { };
+            kubix-validator = pkgs.callPackage ./nix/pkgs/kubix-validator { };
           };
 
           checks = import ./nix/tests {
