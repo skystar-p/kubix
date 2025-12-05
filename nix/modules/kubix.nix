@@ -59,23 +59,6 @@ let
               description = "hash of the crd file";
             };
           };
-
-          config = {
-            assertions = [
-              {
-                assertion = hasApiVersion != (hasGroup || hasVersion);
-                message = "Resource '${name}': Either 'apiVersion' OR 'group'/'version' must be specified, not both";
-              }
-              {
-                assertion = hasGroup == hasVersion;
-                message = "Resource '${name}': 'group' and 'version' must be specified together";
-              }
-              {
-                assertion = hasApiVersion || (hasGroup && hasVersion);
-                message = "Resource '${name}': Must specify either 'apiVersion' or both 'group' and 'version'";
-              }
-            ];
-          };
         }
       )
     );
@@ -130,8 +113,23 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    kubix = {
-      result = validatorLib.output;
-    };
+    kubix.result =
+      let
+        validateSchemas = lib.imap0 (i: schema:
+          let
+            hasApiVersion = schema.apiVersion != null;
+            hasGroup = schema.group != null;
+            hasVersion = schema.version != null;
+          in
+          lib.throwIf (!(hasApiVersion != (hasGroup || hasVersion)))
+            "Schema ${toString i}: Either 'apiVersion' OR 'group'/'version' must be specified, not both"
+          (lib.throwIf (!(hasGroup == hasVersion))
+            "Schema ${toString i}: 'group' and 'version' must be specified together"
+          (lib.throwIf (!(hasApiVersion || (hasGroup && hasVersion)))
+            "Schema ${toString i}: Must specify either 'apiVersion' or both 'group' and 'version'"
+          schema))
+        ) cfg.schemas;
+      in
+      builtins.seq (builtins.deepSeq validateSchemas null) validatorLib.output;
   };
 }
