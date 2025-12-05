@@ -44,14 +44,18 @@ in
       }
       ''
         set -euo pipefail
-        mkdir -p $out/{manifests,crds,schemas}
-        cp -r $manifestDir/. $out/manifests/
-        cp -r $schemaDir/. $out/schemas/
-        cp -r $crdDir/. $out/crds/
+        tempDir=$(mktemp -d)
+        mkdir -p $tempDir/{manifests,crds,schemas}
+        cp -r $manifestDir/. $tempDir/manifests/
+        cp -r $schemaDir/. $tempDir/schemas/
+        cp -r $crdDir/. $tempDir/crds/
 
         kubix-validator \
-          --manifest-dir $out/manifests \
-          --schema-dir $out/schemas \
-          --crd-dir $out/crds
+          --manifest-dir $tempDir/manifests \
+          --schema-dir $tempDir/schemas \
+          --crd-dir $tempDir/crds
+
+        mkdir -p $out
+        cp -r $manifestDir/. $out/
       '';
 }
