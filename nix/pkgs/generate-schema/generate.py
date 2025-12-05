@@ -1,6 +1,7 @@
-import requests
 import sys
 import os
+import json
+import tempfile
 import re
 import subprocess
 
@@ -11,61 +12,88 @@ VERSIONS = {
     "1.33": "v1.33.6-standalone-strict",
     "1.34": "v1.34.2-standalone-strict",
 }
+REPO_URL = "https://github.com/yannh/kubernetes-json-schema.git"
+DEFAULT_REPO_REF = "aeab6ebb38b801eb0e6b4dc6692ae68035054401" # 2025-12-06
 
 # e.g. pod-v1.json
 FILE_NAME_PATTERN = re.compile(r"^.+\-v\d+\.json$")
 
-def get_nix_hash(url):
-    # nix-prefetch-url
-    prefetch = subprocess.run(
-        ['nix-prefetch-url', '--type', 'sha256', url],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True,
-    )
-
-    base32_hash = prefetch.stdout.strip()
-
+def get_nix_hash(file):
     # nix hash convert
     convert = subprocess.run(
-        ['nix', 'hash', 'convert', '--hash-algo', 'sha256', base32_hash],
+        ["nix", "hash", "file", "--type", "sha256", file],
         capture_output=True,
         text=True
     )
 
     result = convert.stdout.strip()
     if not result:
-        raise RuntimeError(f"Failed to convert hash for URL {url}: {convert.stderr.strip()}")
+        raise RuntimeError(f"Failed to convert hash for file {file}: {convert.stderr.strip()}")
 
     return result
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python generate.py <output-dir>")
+    if len(sys.argv) < 2:
+        print("Usage: python generate.py <output-dir> <repo-ref>")
         sys.exit(1)
 
     output_dir = sys.argv[1].strip()
     os.makedirs(output_dir, exist_ok=True)
+    ref = sys.argv[2].strip() if len(sys.argv) >=3 else DEFAULT_REPO_REF
 
+    # prepare repository
+    # make temp dir
+    temp_dir = tempfile.mkdtemp()
+
+    # sparse clone
+    subprocess.run(
+        ["git", "clone", "--filter=blob:none", "--sparse", REPO_URL],
+        cwd=temp_dir,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    repository_dir = os.path.join(temp_dir, os.path.basename(REPO_URL).replace(".git", ""))
 
     for version, dir_name in VERSIONS.items():
         schemas = []
         print(f"Processing version {version}...")
-        api_url = f"https://api.github.com/repos/yannh/kubernetes-json-schema/contents/{dir_name}"
-        response = requests.get(api_url)
 
-        for file_info in response.json():
-            file_name = file_info["name"]
+        # sparse checkout
+        subprocess.run(
+            ["git", "sparse-checkout", "set", dir_name],
+            cwd=repository_dir,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # checkout to ref
+        subprocess.run(
+            ["git", "checkout", ref],
+            cwd=repository_dir,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        manifest_dir = os.path.join(repository_dir, dir_name)
+
+        # list files in dir
+        file_names = os.listdir(manifest_dir)
+
+        for file_name in file_names:
+            file_path = os.path.join(manifest_dir, file_name)
+            if not os.path.isfile(file_path):
+                continue
+
+            with open(file_path, "r") as f:
+                schema_content = json.loads(f.read())
 
             # check file name pattern
             if not FILE_NAME_PATTERN.match(file_name):
                 continue
 
-            # download content and check apiVersion and kind
+            # read content and check apiVersion and kind
             print(f"  Processing file {file_name}...")
-            download_url = file_info["download_url"]
-            schema_content = requests.get(download_url).json()
 
             # check content format
             if not schema_content.get("properties"):
@@ -87,7 +115,8 @@ if __name__ == "__main__":
             kind = kind_enum[0]
 
             # get hash
-            nix_hash = get_nix_hash(download_url)
+            nix_hash = get_nix_hash(file_path)
+            download_url = f"https://raw.githubusercontent.com/yannh/kubernetes-json-schema/{ref}/{dir_name}/{file_name}"
 
             schemas.append({
                 "apiVersion": api_version,
