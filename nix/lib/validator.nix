@@ -66,8 +66,8 @@ let
   );
 
   crdDir = pkgs.linkFarm "crd-dir" (
-    lib.mapAttrsToList (k: v: {
-      name = k;
+    lib.imap0 (i: v: {
+      name = "crd-${toString i}.yaml";
       path = fetch v;
     }) config.kubix.crds
   );

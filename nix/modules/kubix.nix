@@ -9,7 +9,7 @@ let
 
   schemasOption = lib.mkOption {
     type = lib.types.listOf (
-      lib.types.submodule ({
+      lib.types.submodule {
         options = {
           apiVersion = lib.mkOption {
             type = lib.types.str;
@@ -32,23 +32,29 @@ let
             description = "hash of the crd file";
           };
         };
-      })
+      }
     );
     description = "list of schemas to fetch and include";
     default = [ ];
   };
 
-  crdOptions = {
-    options = {
-      url = lib.mkOption {
-        type = lib.types.str;
-        description = "url to the crd file";
-      };
-      hash = lib.mkOption {
-        type = lib.types.str;
-        description = "hash of the crd file";
-      };
-    };
+  crdsOption = lib.mkOption {
+    type = lib.types.listOf (
+      lib.types.submodule {
+        options = {
+          url = lib.mkOption {
+            type = lib.types.str;
+            description = "url to the crd file";
+          };
+          hash = lib.mkOption {
+            type = lib.types.str;
+            description = "hash of the crd file";
+          };
+        };
+      }
+    );
+    description = "list of crds to fetch and include";
+    default = [ ];
   };
 
   validatorLib = import ../lib/validator.nix {
@@ -71,11 +77,7 @@ in
 
     schemas = schemasOption;
 
-    crds = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.submodule crdOptions);
-      description = "list of crds to fetch and include";
-      default = { };
-    };
+    crds = crdsOption;
 
     manifests = lib.mkOption {
       type = lib.types.attrsOf (
