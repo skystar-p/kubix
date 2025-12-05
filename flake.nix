@@ -21,6 +21,30 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       flake = {
         nixosModules.kubix = ./nix/modules/kubix.nix;
+
+        lib.buildManifests =
+          pkgs: kubixConfig:
+          let
+            lib = pkgs.lib;
+            eval = lib.evalModules {
+              modules = [
+                ./nix/modules/kubix.nix
+                {
+                  _module.args = {
+                    inherit pkgs lib;
+                    flake = self;
+                  };
+                }
+                {
+                  kubix = {
+                    enable = true;
+                  }
+                  // kubixConfig;
+                }
+              ];
+            };
+          in
+          eval.config.kubix.result;
       };
 
       systems = [
