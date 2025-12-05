@@ -14,13 +14,49 @@ let
     }) config.kubix.manifests
   );
 
+  predefinedSchemas = import ../lib/schemas/${config.kubix.kubernetesVersion}.nix;
+
+  userManifestTypes = lib.unique (
+    lib.mapAttrsToList (_: manifest: { inherit (manifest) apiVersion kind; }) config.kubix.manifests
+  );
+
+  userSchemaTypes = lib.map (schema: {
+    apiVersion = schema.resolvedApiVersion;
+    kind = schema.kind;
+  }) config.kubix.schemas;
+
+  filteredPredefinedSchemas = lib.filter (
+    schema:
+    (
+      # filter schemas that are actually used in manifests
+      builtins.any (
+        manifestType: schema.apiVersion == manifestType.apiVersion && schema.kind == manifestType.kind
+      ) userManifestTypes
+      # and not overridden by user-defined schemas
+      && !builtins.any (
+        schemaType: schema.apiVersion == schemaType.apiVersion && schema.kind == schemaType.kind
+      ) userSchemaTypes
+    )
+  ) predefinedSchemas;
+
+  allSchemas = lib.concatLists [
+    config.kubix.schemas
+    (lib.map (schema: {
+      apiVersion = schema.resolvedApiVersion;
+      resolvedApiVersion = schema.apiVersion;
+      kind = schema.kind;
+      url = schema.url;
+      hash = schema.hash;
+    }) filteredPredefinedSchemas)
+  ];
+
   schemaDir = pkgs.runCommand "schema-dir" { } (
     lib.concatStringsSep "\n" (
       [ "mkdir -p $out" ]
       ++ lib.map (v: ''
         mkdir -p "$out/${v.resolvedApiVersion}"
         cp "${fetch v}" "$out/${v.resolvedApiVersion}/${v.kind}.json"
-      '') config.kubix.schemas
+      '') allSchemas
     )
   );
 
