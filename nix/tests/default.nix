@@ -37,7 +37,7 @@ in
         apiVersion = "v1";
         kind = "ConfigMap";
         url = "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/master-standalone/configmap-v1.json";
-        hash = "";
+        hash = "sha256-HueXSGPS7OTc5/zHuxGh1hGcRuBM/CDA+cDh4+Pw1yE=";
       }
     ];
     manifests = {
