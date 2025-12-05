@@ -31,14 +31,6 @@ let
 in
 {
   manifestTest = mkModuleTest {
-    schemas = [
-      {
-        apiVersion = "v1";
-        kind = "ConfigMap";
-        url = "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/master-standalone-strict/configmap-v1.json";
-        hash = "sha256-4Ord69Z3wIqgkrLaImTYasT8NO7RErn6wpRbPwDB6bE=";
-      }
-    ];
     manifests = {
       example-configmap = {
         apiVersion = "v1";
