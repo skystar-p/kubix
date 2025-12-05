@@ -99,7 +99,7 @@ fn do_validation(
                 Err(e) => Some(e),
             })
             .collect();
-        if !errors.is_empty() {
+        if !errors_from_crds.is_empty() {
             errors.extend(errors_from_crds);
         } else if !matched {
             errors.push(anyhow::anyhow!(
@@ -483,11 +483,7 @@ mod tests {
         );
 
         assert_eq!(errors.len(), 1);
-        assert!(
-            errors[0]
-                .to_string()
-                .contains("no matching schema or CustomResourceDefinition found")
-        );
+        assert!(errors[0].to_string().contains("no matching version"));
     }
 
     #[test]
@@ -502,11 +498,7 @@ mod tests {
         );
 
         assert_eq!(errors.len(), 1);
-        assert!(
-            errors[0]
-                .to_string()
-                .contains("no matching schema or CustomResourceDefinition found")
-        );
+        assert!(errors[0].to_string().contains("no schema found in CRD"));
     }
 
     #[test]
@@ -579,11 +571,7 @@ mod tests {
         );
 
         assert_eq!(errors.len(), 1);
-        assert!(
-            errors[0]
-                .to_string()
-                .contains("no matching schema or CustomResourceDefinition found")
-        );
+        assert!(errors[0].to_string().contains("validation error"));
     }
 
     #[test]
