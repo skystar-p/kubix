@@ -6,7 +6,7 @@
   ...
 }:
 let
-  fetchSchema = { url, hash }: pkgs.fetchurl { inherit url hash; };
+  fetch = { url, hash, ... }: pkgs.fetchurl { inherit url hash; };
 
   manifestDir = pkgs.linkFarm "manifest-dir" (
     lib.mapAttrsToList (k: v: {
@@ -15,18 +15,18 @@ let
     }) config.kubix.manifests
   );
 
-  crdDir = pkgs.linkFarm "crd-dir" (
-    lib.mapAttrsToList (k: v: {
-      name = k;
-      path = fetchSchema v;
-    }) config.kubix.crds
-  );
-
   schemaDir = pkgs.linkFarm "schema-dir" (
     lib.mapAttrsToList (k: v: {
       name = k;
-      path = fetchSchema v;
+      path = "${v.resolvedApiVersion}/${v.kind}/${fetch v}";
     }) config.kubix.schemas
+  );
+
+  crdDir = pkgs.linkFarm "crd-dir" (
+    lib.mapAttrsToList (k: v: {
+      name = k;
+      path = fetch v;
+    }) config.kubix.crds
   );
 
   validatorPkg = flake.packages.${pkgs.system}.kubix-validator;
@@ -43,11 +43,12 @@ in
         set -euo pipefail
         mkdir -p $out/{manifests,crds,schemas}
         cp -r $manifestDir/. $out/manifests/
-        cp -r $crdDir/. $out/crds/
         cp -r $schemaDir/. $out/schemas/
+        cp -r $crdDir/. $out/crds/
 
         kubix-validator \
           --manifest-dir $out/manifests \
+          --schema-dir $out/schemas \
           --crd-dir $out/crds
       '';
 }
