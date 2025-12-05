@@ -47,7 +47,7 @@ in
 
   config = {
     kubix = lib.mkIf cfg.enable {
-      result = "TODO";
+      result = validatorLib.output;
     };
   };
 }
