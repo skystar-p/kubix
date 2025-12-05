@@ -43,10 +43,17 @@ let
               description = "kind of the schema";
             };
 
+            resolvedApiVersion = lib.mkOption {
+              type = lib.types.str;
+              readOnly = true;
+              default = if cfg.apiVersion != null then cfg.apiVersion else "${cfg.group}/${cfg.version}";
+            };
+
             url = lib.mkOption {
               type = lib.types.str;
               description = "url to the crd file";
             };
+
             hash = lib.mkOption {
               type = lib.types.str;
               description = "hash of the crd file";
