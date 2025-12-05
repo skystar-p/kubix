@@ -16,8 +16,8 @@ let
   );
 
   schemaDir = pkgs.linkFarm "schema-dir" (
-    lib.mapAttrsToList (k: v: {
-      name = k;
+    lib.map (v: {
+      name = "${v.resolvedApiVersion}-${v.kind}";
       path = "${v.resolvedApiVersion}/${v.kind}/${fetch v}";
     }) config.kubix.schemas
   );
