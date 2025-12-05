@@ -27,20 +27,21 @@ in
     enable = lib.mkEnableOption "Enable kubix module";
 
     crds = lib.mkOption {
-      type = lib.types.listOf (lib.types.submodule fetchableOptions);
+      type = lib.types.attrsOf (lib.types.submodule fetchableOptions);
       description = "list of crds to fetch and include";
-      default = [ ];
+      default = { };
     };
 
     schemas = lib.mkOption {
-      type = lib.types.listOf (lib.types.submodule fetchableOptions);
+      type = lib.types.attrsOf (lib.types.submodule fetchableOptions);
       description = "list of json schemas to fetch and include";
-      default = [ ];
+      default = { };
     };
 
     manifests = lib.mkOption {
       type = lib.types.attrsOf lib.types.attrs;
       description = "manifests definition";
+      default = { };
     };
   };
 
