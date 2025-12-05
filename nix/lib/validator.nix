@@ -9,7 +9,7 @@ let
 
   manifestDir = pkgs.linkFarm "manifest-dir" (
     lib.mapAttrsToList (k: v: {
-      name = k;
+      name = "${k}.json";
       path = pkgs.writeText k (builtins.toJSON v);
     }) config.kubix.manifests
   );
