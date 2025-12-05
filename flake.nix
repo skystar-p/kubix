@@ -19,6 +19,10 @@
       ...
     }:
     flake-parts.lib.mkFlake { inherit inputs; } {
+      flake = {
+        nixosModules.kubix = ./nix/modules/kubix.nix;
+      };
+
       systems = [
         "x86_64-linux"
         "x86_64-darwin"
