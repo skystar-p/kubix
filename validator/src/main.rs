@@ -103,12 +103,12 @@ fn do_validation(
             errors.extend(errors_from_crds);
         } else if !matched {
             errors.push(anyhow::anyhow!(
-                "{:?}: no matching schema or CustomResourceDefinition found for {}{}",
+                "{:?}: no matching schema or CustomResourceDefinition found for {}, {}",
                 name,
                 if group.is_empty() {
-                    "".to_string()
+                    group
                 } else {
-                    format!("{}/", group)
+                    format!("{}/{}", group, version)
                 },
                 kind
             ));
