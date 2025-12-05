@@ -200,7 +200,7 @@ fn validate_against_schema(
     manifest_value: &serde_json::Value,
     name: &str,
 ) -> Result<(), anyhow::Error> {
-    let validator = match jsonschema::validator_for(schema) {
+    let validator = match jsonschema::draft202012::new(schema) {
         Ok(validator) => validator,
         Err(e) => {
             bail!("{:?}: failed to create schema validator: {:?}", name, e)
