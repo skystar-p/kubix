@@ -103,7 +103,7 @@ fn do_validation(
             errors.extend(errors_from_crds);
         } else if !matched {
             errors.push(anyhow::anyhow!(
-                "{:?}: no matching CRD found for {}{}",
+                "{:?}: no matching schema or CustomResourceDefinition found for {}{}",
                 name,
                 if group.is_empty() {
                     "".to_string()
@@ -477,7 +477,11 @@ mod tests {
         );
 
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].to_string().contains("no matching CRD found"));
+        assert!(
+            errors[0]
+                .to_string()
+                .contains("no matching schema or CustomResourceDefinition found")
+        );
     }
 
     #[test]
@@ -492,7 +496,11 @@ mod tests {
         );
 
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].to_string().contains("no matching CRD found"));
+        assert!(
+            errors[0]
+                .to_string()
+                .contains("no matching schema or CustomResourceDefinition found")
+        );
     }
 
     #[test]
@@ -565,7 +573,11 @@ mod tests {
         );
 
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].to_string().contains("no matching CRD found"));
+        assert!(
+            errors[0]
+                .to_string()
+                .contains("no matching schema or CustomResourceDefinition found")
+        );
     }
 
     #[test]
@@ -580,7 +592,11 @@ mod tests {
         );
 
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].to_string().contains("no matching CRD found"));
+        assert!(
+            errors[0]
+                .to_string()
+                .contains("no matching schema or CustomResourceDefinition found")
+        );
     }
 
     #[test]
@@ -681,7 +697,11 @@ mod tests {
         );
 
         assert_eq!(errors.len(), 1);
-        assert!(errors[0].to_string().contains("no matching CRD found"));
+        assert!(
+            errors[0]
+                .to_string()
+                .contains("no matching schema or CustomResourceDefinition found")
+        );
     }
 
     #[test]
