@@ -103,9 +103,13 @@ fn do_validation(
             errors.extend(errors_from_crds);
         } else if !matched {
             errors.push(anyhow::anyhow!(
-                "{:?}: no matching CRD found for {}/{}",
+                "{:?}: no matching CRD found for {}{}",
                 name,
-                group,
+                if group.is_empty() {
+                    "".to_string()
+                } else {
+                    format!("{}/", group)
+                },
                 kind
             ));
         }
@@ -619,8 +623,16 @@ mod tests {
         );
 
         assert_eq!(errors.len(), 2);
-        assert!(errors.iter().any(|e| e.to_string().contains("missing TypeMeta")));
-        assert!(errors.iter().any(|e| e.to_string().contains("no matching version")));
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.to_string().contains("missing TypeMeta"))
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.to_string().contains("no matching version"))
+        );
     }
 
     #[test]
