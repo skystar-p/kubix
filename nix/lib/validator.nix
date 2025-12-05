@@ -6,10 +6,9 @@
 let
   fetchSchema =
     { url, hash }:
-    builtins.fetchurl {
+    pkgs.fetchurl {
       inherit url hash;
     };
 in
 {
-  # TODO
 }
