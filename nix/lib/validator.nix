@@ -80,6 +80,49 @@ let
     )
   );
 
+  pullHelmChart =
+    {
+      repo,
+      chartName,
+      chartVersion,
+      hash,
+      extraArgs ? [ ],
+    }:
+    let
+      repoArg =
+        if (pkgs.lib.hasPrefix "oci://" repo) then
+          "${repo}/${chartName}"
+        else
+          ''--repo "${repo}" "${chartName}"'';
+    in
+    pkgs.stdenv.mkDerivation {
+      name = "pull-helm-chart-${chartName}-${chartVersion}";
+      nativeBuildInputs = with pkgs; [
+        kubernetes-helm
+        cacert
+      ];
+
+      phases = [ "installPhase" ];
+      installPhase = ''
+        tempDir=$(mktemp -d)
+        mkdir -p "$tempDir/cache"
+        export HELM_CACHE_HOME="$tempDir/cache"
+
+        helm pull \
+          ${repoArg} \
+          --destination "$tempDir" \
+          --untar \
+          --version "${chartVersion}" \
+          ${lib.concatStringsSep " " extraArgs}
+
+        mv "$tempDir/${chartName}" "$out"
+      '';
+
+      outputHashMode = "recursive";
+      outputHashAlgo = "sha256";
+      outputHash = hash;
+    };
+
   validatorPkg = pkgs.callPackage ../pkgs/kubix-validator { };
 in
 {
