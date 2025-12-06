@@ -57,7 +57,7 @@ let
     default = [ ];
   };
 
-  helmOption = lib.mkOption {
+  helmChartsOption = lib.mkOption {
     type = lib.types.attrsOf (
       lib.types.submodule {
         options = {
@@ -175,7 +175,7 @@ in
       default = { };
     };
 
-    helm = helmOption;
+    helmCharts = helmChartsOption;
 
     result = lib.mkOption {
       type = lib.types.package;

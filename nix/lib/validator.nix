@@ -203,7 +203,7 @@ let
         name = "helm-${name}.json";
         path = manifest;
       }
-    ) config.kubix.helm
+    ) config.kubix.helmCharts
   );
 
   allManifests = pkgs.symlinkJoin {
