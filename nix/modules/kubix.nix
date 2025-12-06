@@ -13,7 +13,6 @@ let
         options = {
           apiVersion = lib.mkOption {
             type = lib.types.str;
-            default = null;
             description = "apiVersion of the schema";
           };
 
@@ -23,13 +22,21 @@ let
           };
 
           url = lib.mkOption {
-            type = lib.types.str;
+            type = lib.types.nullOr lib.types.str;
             description = "url to the json schema file";
+            default = null;
           };
 
           hash = lib.mkOption {
-            type = lib.types.str;
+            type = lib.types.nullOr lib.types.str;
             description = "hash of the json schema file";
+            default = null;
+          };
+
+          path = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            description = "optional local path to the schema file. if set, url and hash are ignored.";
+            default = null;
           };
         };
       }

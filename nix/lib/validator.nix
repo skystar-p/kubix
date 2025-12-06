@@ -15,12 +15,23 @@ let
   );
 
   predefinedSchemas =
-    if builtins.pathExists ../lib/schemas/${config.kubix.kubernetesVersion}.nix then
-      import ../lib/schemas/${config.kubix.kubernetesVersion}.nix
-    else
-      builtins.trace (
-        "warning: no predefined schemas found for Kubernetes version ${config.kubix.kubernetesVersion}. please make sure to define all required schemas in config.kubix.schemas."
-      ) [ ];
+    (
+      if builtins.pathExists ../lib/schemas/${config.kubix.kubernetesVersion}.nix then
+        import ../lib/schemas/${config.kubix.kubernetesVersion}.nix
+      else
+        builtins.trace (
+          "warning: no predefined schemas found for Kubernetes version ${config.kubix.kubernetesVersion}. please make sure to define all required schemas in config.kubix.schemas."
+        ) [ ]
+    )
+    ++ [
+      {
+        apiVersion = "apiextensions.k8s.io/v1";
+        kind = "CustomResourceDefinition";
+        path = ../lib/schemas/crd.json;
+        url = "";
+        hash = "";
+      }
+    ];
 
   userManifestTypes = lib.unique (
     lib.mapAttrsToList (_: manifest: { inherit (manifest) apiVersion kind; }) config.kubix.manifests
@@ -60,10 +71,13 @@ let
   allSchemas = lib.concatLists [
     config.kubix.schemas
     (lib.map (schema: {
-      apiVersion = schema.apiVersion;
-      kind = schema.kind;
-      url = schema.url;
-      hash = schema.hash;
+      inherit (schema)
+        apiVersion
+        kind
+        url
+        hash
+        ;
+      path = null;
     }) filteredPredefinedSchemas)
   ];
 
@@ -71,13 +85,14 @@ let
     lib.concatStringsSep "\n" (
       [ "mkdir -p $out" ]
       ++ lib.map (
-        v:
+        schema:
         let
-          normalizedApiVersion = lib.replaceStrings [ "/" ] [ "_" ] v.apiVersion;
+          schemaPath = if schema.path != null then schema.path else fetch schema;
+          normalizedApiVersion = lib.replaceStrings [ "/" ] [ "_" ] schema.apiVersion;
         in
         ''
           mkdir -p "$out/${normalizedApiVersion}"
-          cp "${fetch v}" "$out/${normalizedApiVersion}/${v.kind}.json"
+          cp "${schemaPath}" "$out/${normalizedApiVersion}/${schema.kind}.json"
         ''
       ) allSchemas
     )
@@ -89,12 +104,9 @@ let
       ++ lib.imap0 (i: v: ''
         yq -o=json '.' "${fetch v}" > "$out/crd-${toString i}.json"
       '') config.kubix.crds
-      ++ lib.map (
-        result:
-        ''
-          cp "${result.crdsPath}" "$out"/helm-crd-${result.name}
-        ''
-      ) helmTemplateResults
+      ++ lib.map (result: ''
+        cp "${result.crdsPath}" "$out"/helm-crd-${result.name}
+      '') helmTemplateResults
     )
   );
 
