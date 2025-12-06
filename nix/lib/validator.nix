@@ -164,10 +164,9 @@ let
           --values "$valueJSONPath" \
           ${builtins.concatStringsSep " " (lib.map (v: ''--api-versions "${v}"'') apiVersions)} \
           ${lib.concatStringsSep " " extraArgs} \
-
           >> "$tempDir/output.yaml"
 
-          yq -o=json '.' "$tempDir/output.yaml" | jq -s '.' >> $out
+        yq -o=json '.' "$tempDir/output.yaml" | jq -s '.' >> $out
       '';
     };
 
