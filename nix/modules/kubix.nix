@@ -24,12 +24,12 @@ let
 
           url = lib.mkOption {
             type = lib.types.str;
-            description = "url to the crd file";
+            description = "url to the json schema file";
           };
 
           hash = lib.mkOption {
             type = lib.types.str;
-            description = "hash of the crd file";
+            description = "hash of the json schema file";
           };
         };
       }
