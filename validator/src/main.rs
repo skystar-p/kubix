@@ -72,6 +72,11 @@ fn do_validation(
             ("".to_string(), api_version.clone())
         };
 
+        // skip CustomResourceDefinitions manifest itself
+        if kind == "CustomResourceDefinition" && api_version == "apiextensions.k8s.io/v1" {
+            continue;
+        }
+
         // find matching schema
         let schema_key = (api_version.clone(), kind.clone());
         if let Some(schema) = schemas.get(&schema_key) {
