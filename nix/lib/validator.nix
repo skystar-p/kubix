@@ -97,12 +97,14 @@ let
     in
     pkgs.stdenv.mkDerivation {
       name = "pull-helm-chart-${chartName}-${chartVersion}";
+
       nativeBuildInputs = with pkgs; [
         kubernetes-helm
         cacert
       ];
 
       phases = [ "installPhase" ];
+
       installPhase = ''
         tempDir=$(mktemp -d)
         mkdir -p "$tempDir/cache"
@@ -121,6 +123,48 @@ let
       outputHashMode = "recursive";
       outputHashAlgo = "sha256";
       outputHash = hash;
+    };
+
+  templateHelmCharts =
+    {
+      name,
+      chart,
+      namespace,
+      values,
+      includeCRDs ? true,
+      kubeVersion ? null,
+      apiVersions ? [ ],
+      extraArgs ? [ ],
+    }:
+    pkgs.stdenv.mkDerivation {
+      name = "helm-chart-${namespace}-${name}";
+
+      nativeBuildInputs = with pkgs; [
+        kubernetes-helm
+      ];
+
+      valueJSON = builtins.toJSON values;
+      passAsFile = [ "valueJSON" ];
+
+      phases = [ "installPhase" ];
+
+      installPhase = ''
+        tempDir=$(mktemp -d)
+        mkdir -p "$tempDir/cache"
+        export HELM_CACHE_HOME="$tempDir/cache"
+
+        helm template \
+          "${name}" \
+          "${chart}" \
+          ${if namespace != "" then ''--namespace "${namespace}"'' else ""} \
+          ${if includeCRDs then "--include-crds" else ""} \
+          ${if kubeVersion != null then ''--kube-version "${kubeVersion}"'' else ""} \
+          --values "$valueJSONPath" \
+          ${builtins.concatStringsSep " " (lib.map (v: ''--api-versions "${v}"'') apiVersions)} \
+          ${lib.concatStringsSep " " extraArgs} \
+
+          >> $out
+      '';
     };
 
   validatorPkg = pkgs.callPackage ../pkgs/kubix-validator { };

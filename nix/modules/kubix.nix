@@ -86,9 +86,15 @@ let
             description = "optional local path to helm chart. if set, repo, chartName, chartVersion and hash are ignored.";
           };
 
+          namespace = lib.mkOption {
+            type = lib.types.str;
+            description = "kubernetes namespace to deploy the helm chart into";
+          };
+
           values = lib.mkOption {
             type = lib.types.attrs;
             description = "helm chart values";
+            default = { };
           };
 
           includeCRDs = lib.mkOption {
