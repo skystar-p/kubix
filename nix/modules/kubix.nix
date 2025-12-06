@@ -81,6 +81,12 @@ let
             description = "helm chart package hash";
           };
 
+          pullExtraArgs = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            description = "extra arguments to pass to helm pull command";
+            default = [ ];
+          };
+
           localChartPath = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             description = "optional local path to helm chart. if set, repo, chartName, chartVersion and hash are ignored.";
@@ -112,6 +118,12 @@ let
           apiVersions = lib.mkOption {
             type = lib.types.listOf lib.types.str;
             description = "list of apiVersions to enable in the helm chart";
+            default = [ ];
+          };
+
+          extraArgs = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            description = "extra arguments to pass to helm template command";
             default = [ ];
           };
         };

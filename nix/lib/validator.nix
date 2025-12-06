@@ -7,7 +7,7 @@
 let
   fetch = { url, hash, ... }: pkgs.fetchurl { inherit url hash; };
 
-  manifestDir = pkgs.linkFarm "manifest-dir" (
+  userManifests = pkgs.linkFarm "manifest-dir" (
     lib.mapAttrsToList (k: v: {
       name = "${k}.json";
       path = pkgs.writeText k (builtins.toJSON v);
@@ -141,6 +141,7 @@ let
 
       nativeBuildInputs = with pkgs; [
         kubernetes-helm
+        yq-go
       ];
 
       valueJSON = builtins.toJSON values;
@@ -163,9 +164,55 @@ let
           ${builtins.concatStringsSep " " (lib.map (v: ''--api-versions "${v}"'') apiVersions)} \
           ${lib.concatStringsSep " " extraArgs} \
 
-          >> $out
+          >> "$tmpDir/output.yaml"
+
+          yq -o=json '.' "$tmpDir/output.yaml" >> $out
       '';
     };
+
+  helmManifests = pkgs.linkFarm "helm-manifests" (
+    lib.mapAttrsToList (
+      name: helmOption:
+      let
+        chart =
+          if helmOption.localChartPath != null then
+            pkgs.pathToDir helmOption.localChartPath
+          else
+            pullHelmChart {
+              inherit (helmOption)
+                repo
+                chartName
+                chartVersion
+                hash
+                ;
+              extraArgs = helmOption.pullExtraArgs;
+            };
+        manifest = templateHelmCharts {
+          inherit name chart;
+          inherit (helmOption)
+            namespace
+            values
+            includeCRDs
+            kubeVersion
+            apiVersions
+            extraArgs
+            ;
+        };
+      in
+      {
+        name = "helm-${name}.json";
+        path = manifest;
+      }
+    ) config.kubix.helm
+  );
+
+  allManifests = pkgs.symlinkJoin {
+    name = "all-manifests";
+    paths = [
+      userManifests
+      helmManifests
+    ];
+  };
 
   validatorPkg = pkgs.callPackage ../pkgs/kubix-validator { };
 in
@@ -173,7 +220,10 @@ in
   output =
     pkgs.runCommand "validator"
       {
-        env = { inherit manifestDir crdDir schemaDir; };
+        env = {
+          inherit crdDir schemaDir;
+          manifestDir = allManifests;
+        };
         nativeBuildInputs = [ validatorPkg ];
       }
       ''
