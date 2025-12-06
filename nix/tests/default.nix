@@ -112,6 +112,28 @@ in
         hash = "sha256-fs14wuKK+blC0l+pRfa//oBV2X+Dr3nNX+Z94nrQVrA=";
 
         namespace = "cert-manager";
+        values = {
+          crds.enabled = true;
+        };
+      };
+    };
+
+    manifests = {
+      example-certificate = {
+        apiVersion = "cert-manager.io/v1";
+        kind = "Certificate";
+        metadata = {
+          name = "example-com-tls";
+          namespace = "default";
+        };
+        spec = {
+          secretName = "example-com-tls";
+          dnsNames = [ "example.com" ];
+          issuerRef = {
+            name = "letsencrypt-prod";
+            kind = "ClusterIssuer";
+          };
+        };
       };
     };
   };
