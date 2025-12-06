@@ -64,21 +64,25 @@ let
           repo = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             description = "helm repo url";
+            default = null;
           };
 
           chartName = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             description = "helm chart name";
+            default = null;
           };
 
           chartVersion = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             description = "helm chart version";
+            default = null;
           };
 
           hash = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             description = "helm chart package hash";
+            default = null;
           };
 
           pullExtraArgs = lib.mkOption {
@@ -90,6 +94,7 @@ let
           localChartPath = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             description = "optional local path to helm chart. if set, repo, chartName, chartVersion and hash are ignored.";
+            default = null;
           };
 
           namespace = lib.mkOption {
