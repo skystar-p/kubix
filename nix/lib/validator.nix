@@ -15,23 +15,12 @@ let
   );
 
   predefinedSchemas =
-    (
-      if builtins.pathExists ../lib/schemas/${config.kubix.kubernetesVersion}.nix then
-        import ../lib/schemas/${config.kubix.kubernetesVersion}.nix
-      else
-        builtins.trace (
-          "warning: no predefined schemas found for Kubernetes version ${config.kubix.kubernetesVersion}. please make sure to define all required schemas in config.kubix.schemas."
-        ) [ ]
-    )
-    ++ [
-      {
-        apiVersion = "apiextensions.k8s.io/v1";
-        kind = "CustomResourceDefinition";
-        path = ../lib/schemas/crd.json;
-        url = "";
-        hash = "";
-      }
-    ];
+    if builtins.pathExists ../lib/schemas/${config.kubix.kubernetesVersion}.nix then
+      import ../lib/schemas/${config.kubix.kubernetesVersion}.nix
+    else
+      builtins.trace (
+        "warning: no predefined schemas found for Kubernetes version ${config.kubix.kubernetesVersion}. please make sure to define all required schemas in config.kubix.schemas."
+      ) [ ];
 
   userManifestTypes = lib.unique (
     lib.mapAttrsToList (_: manifest: { inherit (manifest) apiVersion kind; }) config.kubix.manifests
@@ -77,7 +66,7 @@ let
         url
         hash
         ;
-      path = null;
+      path = schema.path or null;
     }) filteredPredefinedSchemas)
   ];
 
