@@ -142,6 +142,7 @@ let
       nativeBuildInputs = with pkgs; [
         kubernetes-helm
         yq-go
+        jq
       ];
 
       valueJSON = builtins.toJSON values;
@@ -166,7 +167,7 @@ let
 
           >> "$tempDir/output.yaml"
 
-          yq -o=json '.' "$tempDir/output.yaml" >> $out
+          yq -o=json '.' "$tempDir/output.yaml" | jq -s '.' >> $out
       '';
     };
 
