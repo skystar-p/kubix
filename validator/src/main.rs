@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, path::PathBuf};
 use anyhow::bail;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::api::DynamicObject;
+use walkdir::WalkDir;
 
 #[derive(argh::FromArgs)]
 /// kubix validator
@@ -125,8 +126,10 @@ fn try_parse_directory_files<T: serde::de::DeserializeOwned>(
     if !dir.is_dir() {
         bail!("directory does not exist or is not a directory");
     }
-    for entry in std::fs::read_dir(dir)? {
-        let entry_path = entry?.path();
+    let entries = WalkDir::new(dir).max_depth(20).follow_links(true);
+    for entry in entries {
+        let entry = entry?;
+        let entry_path = entry.path();
         if entry_path.is_dir() {
             continue;
         }
@@ -135,7 +138,7 @@ fn try_parse_directory_files<T: serde::de::DeserializeOwned>(
             .and_then(|s| s.to_str())
             .unwrap_or("unknown")
             .to_string();
-        let content = std::fs::read(&entry_path)?;
+        let content = std::fs::read(entry_path)?;
         if let Ok(item) = serde_json::from_slice::<T>(&content) {
             // parse as single item
             items.push((file_name, item));
@@ -161,38 +164,42 @@ fn try_parse_schema_files(dir: &PathBuf) -> anyhow::Result<BTreeMap<SchemaKey, s
     if !dir.is_dir() {
         bail!("directory does not exist or is not a directory");
     }
-    // schema file should be in <dir>/<apiVersion>/<kind>.json
 
-    for entry in std::fs::read_dir(dir)? {
-        let entry_path = entry?.path();
-        if !entry_path.is_dir() {
+    // schema file should be in <dir>/<apiVersion>/<kind>.json
+    let entries = WalkDir::new(dir).max_depth(20).follow_links(true);
+    for entry in entries {
+        let entry = entry?;
+        let entry_path = entry.path();
+        if entry_path.is_dir() {
             continue;
         }
 
-        // this entry_path is apiVersion
-        let api_version = entry_path
+        // get parent directory as apiVersion
+        let Some(parent) = entry_path.parent() else {
+            continue;
+        };
+        // skip files directly in the root directory (need at least one level of nesting)
+        if parent == dir.as_path() {
+            continue;
+        }
+
+        let api_version = parent
             .file_name()
             .and_then(|s| s.to_str())
             .ok_or(anyhow::anyhow!("invalid apiVersion directory name"))?
             .to_string();
 
-        // '/' is convereted to '_' in file system names, convert back
+        // '/' is converted to '_' in file system names, convert back
         let api_version = api_version.replace('_', "/");
 
-        for kind_entry in std::fs::read_dir(&entry_path)? {
-            let kind_entry_path = kind_entry?.path();
-            if kind_entry_path.is_dir() {
-                continue;
-            }
-            let kind = kind_entry_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .ok_or(anyhow::anyhow!("invalid kind file name"))?
-                .to_string();
-            let content = std::fs::read(&kind_entry_path)?;
-            let schema_value: serde_json::Value = serde_json::from_slice(&content)?;
-            schemas.insert((api_version.clone(), kind.clone()), schema_value);
-        }
+        let kind = entry_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or(anyhow::anyhow!("invalid kind file name"))?
+            .to_string();
+        let content = std::fs::read(entry_path)?;
+        let schema_value: serde_json::Value = serde_json::from_slice(&content)?;
+        schemas.insert((api_version.clone(), kind.clone()), schema_value);
     }
 
     Ok(schemas)
