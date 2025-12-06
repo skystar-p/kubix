@@ -30,7 +30,7 @@ let
     eval.config.kubix.result;
 in
 {
-  configMapTest = mkModuleTest {
+  simpleConfigMap = mkModuleTest {
     manifests = {
       example-configmap = {
         apiVersion = "v1";
@@ -99,6 +99,19 @@ in
             kind = "ClusterIssuer";
           };
         };
+      };
+    };
+  };
+
+  simpleHelmChart = mkModuleTest {
+    helmCharts = {
+      cert-manager = {
+        repo = "https://charts.jetstack.io";
+        chartName = "cert-manager";
+        chartVersion = "v1.19.1";
+        hash = "sha256-fs14wuKK+blC0l+pRfa//oBV2X+Dr3nNX+Z94nrQVrA=";
+
+        namespace = "cert-manager";
       };
     };
   };
