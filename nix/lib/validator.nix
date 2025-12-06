@@ -26,6 +26,18 @@ let
     lib.mapAttrsToList (_: manifest: { inherit (manifest) apiVersion kind; }) config.kubix.manifests
   );
 
+  helmManifestTypes = lib.concatLists (
+    lib.map (
+      helmResult:
+      let
+        schemaTypes = builtins.fromJSON (builtins.readFile helmResult.schemaTypesPath);
+      in
+      lib.map (schemaType: { inherit (schemaType) apiVersion kind; }) schemaTypes
+    ) helmTemplateResult
+  );
+
+  allManifestTypes = lib.unique (userManifestTypes ++ helmManifestTypes);
+
   userSchemaTypes = lib.map (schema: {
     apiVersion = schema.apiVersion;
     kind = schema.kind;
@@ -37,7 +49,7 @@ let
       # filter schemas that are actually used in manifests
       builtins.any (
         manifestType: schema.apiVersion == manifestType.apiVersion && schema.kind == manifestType.kind
-      ) userManifestTypes
+      ) allManifestTypes
       # and not overridden by user-defined schemas
       && !builtins.any (
         schemaType: schema.apiVersion == schemaType.apiVersion && schema.kind == schemaType.kind
@@ -166,44 +178,53 @@ let
           ${lib.concatStringsSep " " extraArgs} \
           >> "$tempDir/output.yaml"
 
-        yq -o=json '.' "$tempDir/output.yaml" | jq -s '.' >> $out
+        mkdir -p $out
+        # convert templated yaml to json array
+        yq -o=json '.' "$tempDir/output.yaml" | jq -s '.' >> $out/output.json
+        # list all schema types
+        jq '[.[] | {apiVersion, kind}] | unique' "$out/output.json" > $out/schemas-types.json
       '';
     };
 
+  helmTemplateResult = lib.mapAttrsToList (
+    name: helmOption:
+    let
+      chart =
+        if helmOption.localChartPath != null then
+          pkgs.pathToDir helmOption.localChartPath
+        else
+          pullHelmChart {
+            inherit (helmOption)
+              repo
+              chartName
+              chartVersion
+              hash
+              ;
+            extraArgs = helmOption.pullExtraArgs;
+          };
+      manifest = templateHelmCharts {
+        inherit name chart;
+        inherit (helmOption)
+          namespace
+          values
+          includeCRDs
+          kubeVersion
+          apiVersions
+          extraArgs
+          ;
+      };
+    in
+    {
+      name = "helm-${name}.json";
+      path = "${manifest}/output.json";
+      schemaTypesPath = "${manifest}/schemas-types.json";
+    }
+  ) config.kubix.helmCharts;
+
   helmManifests = pkgs.linkFarm "helm-manifests" (
-    lib.mapAttrsToList (
-      name: helmOption:
-      let
-        chart =
-          if helmOption.localChartPath != null then
-            pkgs.pathToDir helmOption.localChartPath
-          else
-            pullHelmChart {
-              inherit (helmOption)
-                repo
-                chartName
-                chartVersion
-                hash
-                ;
-              extraArgs = helmOption.pullExtraArgs;
-            };
-        manifest = templateHelmCharts {
-          inherit name chart;
-          inherit (helmOption)
-            namespace
-            values
-            includeCRDs
-            kubeVersion
-            apiVersions
-            extraArgs
-            ;
-        };
-      in
-      {
-        name = "helm-${name}.json";
-        path = manifest;
-      }
-    ) config.kubix.helmCharts
+    map (item: {
+      inherit (item) name path;
+    }) helmTemplateResult
   );
 
   allManifests = pkgs.symlinkJoin {
