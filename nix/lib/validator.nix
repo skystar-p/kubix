@@ -33,7 +33,7 @@ let
         schemaTypes = builtins.fromJSON (builtins.readFile helmResult.schemaTypesPath);
       in
       lib.map (schemaType: { inherit (schemaType) apiVersion kind; }) schemaTypes
-    ) helmTemplateResult
+    ) helmTemplateResults
   );
 
   allManifestTypes = lib.unique (userManifestTypes ++ helmManifestTypes);
@@ -89,6 +89,12 @@ let
       ++ lib.imap0 (i: v: ''
         yq -o=json '.' "${fetch v}" > "$out/crd-${toString i}.json"
       '') config.kubix.crds
+      ++ lib.map (
+        result:
+        ''
+          cp "${result.crdsPath}" "$out"/helm-crd-${result.name}
+        ''
+      ) helmTemplateResults
     )
   );
 
@@ -183,10 +189,12 @@ let
         yq -o=json '.' "$tempDir/output.yaml" | jq -s '.' >> $out/output.json
         # list all schema types
         jq '[.[] | {apiVersion, kind}] | unique' "$out/output.json" > $out/schemas-types.json
+        # list all crds if any
+        yq -o=json '. | select(.kind == "CustomResourceDefinition" and .apiVersion == "apiextensions.k8s.io/v1")' "$tempDir/output.yaml" | jq -s '.' >> $out/crds.json
       '';
     };
 
-  helmTemplateResult = lib.mapAttrsToList (
+  helmTemplateResults = lib.mapAttrsToList (
     name: helmOption:
     let
       chart =
@@ -218,13 +226,14 @@ let
       name = "helm-${name}.json";
       path = "${manifest}/output.json";
       schemaTypesPath = "${manifest}/schemas-types.json";
+      crdsPath = "${manifest}/crds.json";
     }
   ) config.kubix.helmCharts;
 
   helmManifests = pkgs.linkFarm "helm-manifests" (
     map (item: {
       inherit (item) name path;
-    }) helmTemplateResult
+    }) helmTemplateResults
   );
 
   allManifests = pkgs.symlinkJoin {
