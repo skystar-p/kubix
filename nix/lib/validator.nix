@@ -164,9 +164,9 @@ let
           ${builtins.concatStringsSep " " (lib.map (v: ''--api-versions "${v}"'') apiVersions)} \
           ${lib.concatStringsSep " " extraArgs} \
 
-          >> "$tmpDir/output.yaml"
+          >> "$tempDir/output.yaml"
 
-          yq -o=json '.' "$tmpDir/output.yaml" >> $out
+          yq -o=json '.' "$tempDir/output.yaml" >> $out
       '';
     };
 
