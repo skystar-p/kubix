@@ -17,8 +17,8 @@ Write your Kubernetes manifest with your familiar Nix language, like this.
       namespace = "default";
     };
     data = {
-      "example.property.1" = "value1";
-      "example.property.2" = "value2";
+      "cool-data" = "foo";
+      "awesome-data" = "bar";
     };
   };
 }
@@ -77,8 +77,8 @@ All of your given manifests are strictly validated with JSON Schema. See this ex
       namespace = "default";
     };
     data = {
-      "example.property.1" = "value1";
-      "wrong-property" = 12345; # This value should be a string, but it is a number!
+      "cool-data" = "foo";
+      "wrong-data" = 12345; # This value should be a string, but it is a number!
     };
   };
 }
@@ -117,7 +117,7 @@ nix build
 #        Output paths:
 #          /nix/store/140xlyahm4cr3m0bb0aid1wiznqh27cn-validator
 #        Last 2 log lines:
-#        > Error: "example-configmap.json": validation error at /data/wrong-property: 12345 is not of types "null", "string"
+#        > Error: "example-configmap.json": validation error at /data/wrong-data: 12345 is not of types "null", "string"
 #        > Error: validation failed with 1 errors
 #        For full logs, run:
 #          nix log /nix/store/2djixn2avimz4g802mih2s628xkyymn0-validator.drv
