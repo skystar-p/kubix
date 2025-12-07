@@ -265,3 +265,116 @@ Worried about not having a JSON schema files? No sweat. Kubix can understand `Cu
 ```
 
 It is simple as that.
+
+## Using Helm chart
+
+Many people use Helm to render manifests for deployments. Unfortunately, Helm is just a dumb text templating tool, so there is no guarantee that the rendered manifest will work when applied to your cluster.
+
+Here's the thing. Kubix can include arbitrary Helm charts in your manifest and verify whether the rendered result is templated incorrectly.
+
+```nix
+# charts.nix
+{
+  cert-manager = {
+    repo = "https://charts.jetstack.io";
+    chartName = "cert-manager";
+    chartVersion = "v1.19.1";
+    hash = "sha256-fs14wuKK+blC0l+pRfa//oBV2X+Dr3nNX+Z94nrQVrA=";
+
+    namespace = "cert-manager";
+    values = {
+      # provide your values.yaml in Nix!
+    };
+}
+```
+
+```nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    kubix.url = "github:skystar-p/kubix";
+  };
+
+  outputs = inputs@{ nixpkgs, flake-parts, kubix, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
+
+      perSystem = { pkgs, lib, ... }: {
+        packages.default = kubix.lib.buildManifests pkgs {
+          helmCharts = import ./charts.nix;
+        };
+      };
+    };
+}
+```
+
+### Using Helm chart containing CustomResourceDefinition resources
+
+If a Helm chart contains `CustomResourceDefinition`, Kubix will automatically import them and verify your given custom resource manifests!
+
+```nix
+# charts.nix
+{
+  cert-manager = {
+    repo = "https://charts.jetstack.io";
+    chartName = "cert-manager";
+    chartVersion = "v1.19.1";
+    hash = "sha256-fs14wuKK+blC0l+pRfa//oBV2X+Dr3nNX+Z94nrQVrA=";
+
+    namespace = "cert-manager";
+    values = {
+      # include CRDs!
+      crds.enabled = true;
+    };
+}
+```
+
+```nix
+# manifest.nix
+{
+  # even if you don't provide the CRD, Kubix will automatically import the CRDs
+  # from the Helm chart rendered result!
+  example-certificate = {
+    apiVersion = "cert-manager.io/v1";
+    kind = "Certificate";
+    metadata = {
+      name = "example-com-tls";
+      namespace = "default";
+    };
+    spec = {
+      secretName = "example-com-tls";
+      dnsNames = [ "example.com" ];
+      issuerRef = {
+        name = "letsencrypt-prod";
+        kind = "ClusterIssuer";
+      };
+    };
+  };
+}
+```
+
+```nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    kubix.url = "github:skystar-p/kubix";
+  };
+
+  outputs = inputs@{ nixpkgs, flake-parts, kubix, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
+
+      perSystem = { pkgs, lib, ... }: {
+        packages.default = kubix.lib.buildManifests pkgs {
+          # No need to provide CRD options.
+          helmCharts = import ./charts.nix;
+          manifests = import ./manifest.nix;
+        };
+      };
+    };
+}
+```
