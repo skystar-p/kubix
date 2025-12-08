@@ -152,6 +152,26 @@ let
       config
       ;
   };
+
+  deepMergeAttrs =
+    let
+      valueType =
+        lib.types.nullOr (
+          lib.types.oneOf [
+            lib.types.bool
+            lib.types.int
+            lib.types.float
+            lib.types.str
+            lib.types.path
+            (lib.types.listOf valueType)
+            (lib.types.lazyAttrsOf valueType)
+          ]
+        )
+        // {
+          emptyValue.value = { };
+        };
+    in
+    lib.types.lazyAttrsOf valueType;
 in
 {
   options.kubix = {
@@ -170,7 +190,7 @@ in
     manifests = lib.mkOption {
       type = lib.types.attrsOf (
         lib.types.submodule {
-          freeformType = lib.types.attrs;
+          freeformType = deepMergeAttrs;
           options = {
             apiVersion = lib.mkOption {
               type = lib.types.str;
