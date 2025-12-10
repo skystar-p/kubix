@@ -156,10 +156,10 @@ let
       extraArgs ? [ ],
     }:
     let
-      name = "helm-chart-${namespace}-${name}";
+      outputName = "helm-${namespace}-${name}";
     in
     pkgs.stdenv.mkDerivation {
-      inherit name;
+      name = outputName;
 
       nativeBuildInputs = with pkgs; [
         kubernetes-helm
@@ -189,10 +189,19 @@ let
           >> "$tempDir/output.yaml"
 
         mkdir -p $out
-        # convert templated yaml to json array
-        yq -o=json '.' "$tempDir/output.yaml" | jq -s '.' >> $out/output.json
+        mkdir -p $out/${outputName}
+        yq -o=json '.' "$tempDir/output.yaml" | jq -s '.' >> "$tempDir/all-manifests.json"
+        # convert templated yaml to jsons
+        yq -o=json '.' "$tempDir/output.yaml" | jq -s '.' | jq -c '.[]' | while read -r manifest; do
+          apiVersion=$(jq -e -r '.apiVersion | gsub("/"; "_")' <<< "$manifest")
+          kind=$(jq -e -r '.kind' <<< "$manifest")
+          name=$(jq -e -r '.metadata.name' <<< "$manifest")
+
+          echo "$manifest" | jq > "$out/${outputName}/$apiVersion-$kind-$name.json"
+        done
+
         # list all schema types
-        jq '[.[] | {apiVersion, kind}] | unique' "$out/output.json" > $out/schemas-types.json
+        jq '[.[] | {apiVersion, kind}] | unique' "$tempDir/all-manifests.json" > $out/schemas-types.json
         # list all crds if any
         yq -o=json '. | select(.kind == "CustomResourceDefinition" and .apiVersion == "apiextensions.k8s.io/v1")' "$tempDir/output.yaml" | jq -s '.' >> $out/crds.json
       '';
@@ -225,10 +234,11 @@ let
           extraArgs
           ;
       };
+      manifestDirName = "helm-${helmOption.namespace}-${name}";
     in
     {
-      name = "helm-${name}.json";
-      path = "${manifest}/output.json";
+      name = "helm-${name}";
+      path = "${manifest}/${manifestDirName}";
       schemaTypesPath = "${manifest}/schemas-types.json";
       crdsPath = "${manifest}/crds.json";
     }
