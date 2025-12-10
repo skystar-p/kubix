@@ -148,14 +148,16 @@ let
   postProcessorsOption = lib.mkOption {
     type = lib.types.listOf (
       lib.types.submodule {
-        predicate = lib.mkOption {
-          type = lib.types.functionTo lib.types.bool;
-          description = "a function that takes a manifest and returns true if the mutator should be applied";
-        };
+        options = {
+          predicate = lib.mkOption {
+            type = lib.types.functionTo lib.types.bool;
+            description = "a function that takes a manifest and returns true if the mutator should be applied";
+          };
 
-        mutator = lib.mkOption {
-          type = lib.types.functionTo lib.types.any;
-          description = "a function that takes a manifest and returns the mutated manifest";
+          mutator = lib.mkOption {
+            type = lib.types.functionTo (lib.types.nullOr deepMergeAttrs);
+            description = "a function that takes a manifest and returns the mutated manifest";
+          };
         };
       }
     );
