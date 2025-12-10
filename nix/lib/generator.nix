@@ -9,7 +9,15 @@ let
 
   applyPostProcessors =
     manifest: postProcessors:
-    lib.foldl' (acc: processor: if acc == null then null else processor acc) manifest postProcessors;
+    lib.foldl' (
+      acc: processor:
+      if acc == null then
+        null
+      else if (processor.predicate manifest) == true then
+        processor.mutator acc
+      else
+        manifest
+    ) manifest postProcessors;
 
   userManifests =
     let
