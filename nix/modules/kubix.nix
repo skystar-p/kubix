@@ -145,6 +145,25 @@ let
     default = { };
   };
 
+  postProcessors = lib.mkOption {
+    type = lib.types.listOf (
+      lib.types.submodule {
+        predicate = lib.mkOption {
+          type = lib.types.functionTo lib.types.bool;
+          description = "a function that takes a manifest and returns true if the mutator should be applied";
+        };
+
+        mutator = lib.mkOption {
+          type = lib.types.functionTo lib.types.any;
+          description = "a function that takes a manifest and returns the mutated manifest";
+        };
+      }
+    );
+
+    description = "list of post-processing functions to apply to the manifests";
+    default = [ ];
+  };
+
   validatorLib = import ../lib/validator.nix {
     inherit
       pkgs
