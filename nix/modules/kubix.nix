@@ -145,7 +145,7 @@ let
     default = { };
   };
 
-  postProcessors = lib.mkOption {
+  postProcessorsOption = lib.mkOption {
     type = lib.types.listOf (
       lib.types.submodule {
         predicate = lib.mkOption {
@@ -227,6 +227,8 @@ in
     };
 
     helmCharts = helmChartsOption;
+
+    postProcessors = postProcessorsOption;
 
     result = lib.mkOption {
       type = lib.types.package;
