@@ -155,8 +155,11 @@ let
       apiVersions ? [ ],
       extraArgs ? [ ],
     }:
-    pkgs.stdenv.mkDerivation {
+    let
       name = "helm-chart-${namespace}-${name}";
+    in
+    pkgs.stdenv.mkDerivation {
+      inherit name;
 
       nativeBuildInputs = with pkgs; [
         kubernetes-helm
