@@ -7,12 +7,25 @@
 let
   fetch = { url, hash, ... }: pkgs.fetchurl { inherit url hash; };
 
-  userManifests = pkgs.linkFarm "manifest-dir" (
-    lib.mapAttrsToList (k: v: {
-      name = "${k}.json";
-      path = pkgs.writeText k (builtins.toJSON v);
-    }) config.kubix.manifests
-  );
+  applyPostProcessors =
+    manifest: postProcessors:
+    lib.filter (
+      (manifest: manifest != null) (lib.foldl' (acc: processor: processor acc) manifest postProcessors)
+    );
+
+  userManifests =
+    let
+      processedManifests = lib.mapAttrsToList (k: v: {
+        name = k;
+        manifest = applyPostProcessors v config.kubix.postProcessors;
+      }) config.kubix.manifests;
+    in
+    pkgs.linkFarm "manifest-dir" (
+      lib.mapAttrsToList (k: v: {
+        name = "${k}.json";
+        path = pkgs.writeText k (builtins.toJSON v);
+      }) processedManifests
+    );
 
   predefinedSchemas =
     if builtins.pathExists ../lib/schemas/${config.kubix.kubernetesVersion}.nix then
