@@ -9,21 +9,21 @@ let
 
   applyPostProcessors =
     manifest: postProcessors:
-    lib.filter (
-      (manifest: manifest != null) (lib.foldl' (acc: processor: processor acc) manifest postProcessors)
-    );
+    lib.foldl' (acc: processor: if acc == null then null else processor acc) manifest postProcessors;
 
   userManifests =
     let
-      processedManifests = lib.mapAttrsToList (k: v: {
-        name = k;
-        manifest = applyPostProcessors v config.kubix.postProcessors;
-      }) config.kubix.manifests;
+      processedManifests = lib.filter (x: x.manifest != null) (
+        lib.mapAttrsToList (k: v: {
+          name = k;
+          manifest = applyPostProcessors v config.kubix.postProcessors;
+        }) config.kubix.manifests
+      );
     in
     pkgs.linkFarm "manifest-dir" (
-      lib.mapAttrsToList (k: v: {
-        name = "${k}.json";
-        path = pkgs.writeText k (builtins.toJSON v);
+      map (x: {
+        name = "${x.name}.json";
+        path = pkgs.writeText x.name (builtins.toJSON x.manifest);
       }) processedManifests
     );
 
@@ -257,11 +257,29 @@ let
     }
   ) config.kubix.helmCharts;
 
-  helmManifests = pkgs.linkFarm "helm-manifests" (
-    map (item: {
-      inherit (item) name path;
-    }) helmTemplateResults
-  );
+  helmManifests =
+    let
+      processedManifests = lib.concatMap (
+        result:
+        let
+          manifestDir = result.path;
+          manifestFiles = builtins.attrNames (builtins.readDir manifestDir);
+          jsonFiles = lib.filter (f: lib.hasSuffix ".json" f) manifestFiles;
+        in
+        lib.filter (x: x.manifest != null) (
+          map (file: {
+            name = "${result.name}/${file}";
+            manifest = applyPostProcessors (builtins.fromJSON (builtins.readFile "${manifestDir}/${file}")) config.kubix.postProcessors;
+          }) jsonFiles
+        )
+      ) helmTemplateResults;
+    in
+    pkgs.linkFarm "helm-manifests" (
+      map (x: {
+        name = x.name;
+        path = pkgs.writeText (builtins.baseNameOf x.name) (builtins.toJSON x.manifest);
+      }) processedManifests
+    );
 
   allManifests = pkgs.symlinkJoin {
     name = "all-manifests";
