@@ -2,7 +2,20 @@
 
 A Kubernetes manifest generator using Nix.
 
-## Table of Contents
+## Why?
+
+Managing Kubernetes manifests is... painful. Hand-written YAML is error-prone, and you won't know your manifests are broken until you `kubectl apply` them to a cluster. Helm helps with templating but it's just text substitution—there's no guarantee the rendered output is valid (it can even generate invalid YAML!).
+
+Kubix solves this by:
+
+- **Catching errors at build time**: All manifests are validated against JSON Schema before they're even written. Typos, missing required fields, and type mismatches fail the manifest generation, not the deployment.
+- **Using Nix for configuration**: Write manifests in a real programming language with proper types, functions, and abstractions. No more YAML indentation disasters and `nindent` workaround.
+- **Validating Helm outputs**: Render Helm charts and validate the result. Finally know if your `values.yaml` produces valid Kubernetes resources.
+- **Supporting CRDs**: Automatically extract schemas from CustomResourceDefinitions. Your cert-manager Certificates and Istio VirtualServices get validated too.
+- **Post-Process your final result**: You have full control over you manifests, powered by Nix function. No more custom forked Helm charts for your real needs.
+
+If you're tired of debugging YAML in production, try Kubix. Kubix can solve the real problems listed above, and makes the writing manifest a more pleasant experience.
+
 
 - [Basic Usage](#basic-usage)
 - [Validating your manifests](#validating-your-manifests)
