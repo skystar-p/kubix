@@ -1,6 +1,6 @@
 # kubix
 
-A Kubernetes manifest generator using Nix.
+A Kubernetes manifest generator, powered by Nix.
 
 ## Why?
 
@@ -11,10 +11,10 @@ Kubix solves this by:
 - **Catching errors at build time**: All manifests are validated against JSON Schema before they're even written. Typos, missing required fields, and type mismatches fail the manifest generation, not the deployment.
 - **Using Nix for configuration**: Write manifests in a real programming language with proper types, functions, and abstractions. No more YAML indentation disasters and `nindent` workaround.
 - **Validating Helm outputs**: Render Helm charts and validate the result. Finally know if your `values.yaml` produces valid Kubernetes resources.
-- **Supporting CRDs**: Automatically extract schemas from CustomResourceDefinitions. Your cert-manager Certificates and Istio VirtualServices get validated too.
-- **Post-Process your final result**: You have full control over you manifests, powered by Nix function. No more custom forked Helm charts for your real needs.
+- **Supporting CRDs**: Automatically extract schemas from `CustomResourceDefinition`s. Your cert-manager `Certificate`s and Istio `VirtualService`s get validated too.
+- **Post-Process your final result**: You have full control over your manifests, powered by Nix function. No more custom forked Helm charts for your real needs.
 
-If you're tired of debugging YAML in production, try Kubix. Kubix can solve the real problems listed above, and makes the writing manifest a more pleasant experience.
+If you're tired of debugging YAML in production, give Kubix a try. It makes writing manifest a more pleasant experience.
 
 
 - [Basic Usage](#basic-usage)
@@ -107,18 +107,6 @@ All of your given manifests are strictly validated with JSON Schema. See this ex
 }
 ```
 
-```nix
-# flake.nix
-{
-  # ...
-
-  # use `kubix.lib.buildManifests` to validate the manifest and produce output!
-  packages.default = kubix.lib.buildManifests system {
-    manifests = import ./manifest.nix;
-  };
-}
-```
-
 What will happen when you build this?
 
 ```bash
@@ -134,6 +122,8 @@ nix build
 #        For full logs, run:
 #          nix log /nix/store/2djixn2avimz4g802mih2s628xkyymn0-validator.drv
 ```
+
+Kubix kindly alerts you, what fields are missing or wrong, and why.
 
 ## Use your custom JSON Schema
 
@@ -380,6 +370,7 @@ Use it like this:
 
 ```nix
 # postProcessors.nix
+{ lib, ... }:
 [
   {
     name = "add exciting data";
@@ -405,7 +396,7 @@ Use it like this:
 
   packages.default = kubix.lib.buildManifests system {
     manifests = import ./manifest.nix;
-    postProcessors = import ./postProcessors.nix;
+    postProcessors = import ./postProcessors.nix { inherit lib };
   };
 }
 ```
@@ -420,9 +411,9 @@ Then the result looks like:
     "namespace": "default"
   },
   "data": {
+    "cool-data": "foo",
     "awesome-data": "bar",
     "boring-data": "baz",
-    "cool-data": "koo",
     "exciting-data": "qux" # <-- this is added by post-processor!
   }
 }
@@ -432,6 +423,7 @@ You can also do your own validation on your manifests. Just `throw` the error in
 
 ```nix
 # postProcessors.nix
+{ lib, ... }:
 [
   {
     name = "no boring data";
