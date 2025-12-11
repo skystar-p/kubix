@@ -17,8 +17,9 @@
         nixosModules.kubix = ./nix/modules/kubix.nix;
 
         lib.buildManifests =
-          pkgs: kubixConfig:
+          system: kubixConfig:
           let
+            pkgs = import nixpkgs { inherit system; };
             lib = pkgs.lib;
             eval = lib.evalModules {
               modules = [
