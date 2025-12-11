@@ -149,14 +149,20 @@ let
     type = lib.types.listOf (
       lib.types.submodule {
         options = {
+          name = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            description = "name of the post-processor (optional).";
+            default = null;
+          };
+
           predicate = lib.mkOption {
             type = lib.types.functionTo lib.types.bool;
             description = "a function that takes a manifest and returns true if the mutator should be applied";
           };
 
-          mutator = lib.mkOption {
+          mutate = lib.mkOption {
             type = lib.types.functionTo (lib.types.nullOr deepMergeAttrs);
-            description = "a function that takes a manifest and returns the mutated manifest";
+            description = "a function that takes a manifest and returns the mutated manifest. if error is thrown, the manifest is considered invalid. if null is returned, the manifest is removed from the output.";
           };
         };
       }

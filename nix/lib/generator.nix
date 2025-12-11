@@ -14,7 +14,24 @@ let
       if acc == null then
         null
       else if (processor.predicate manifest) == true then
-        processor.mutator acc
+        let
+          result = builtins.tryEval (processor.mutate acc);
+        in
+        if result.success then
+          result.value
+        else
+          let
+            processorName = if processor.name != null then processor.name else "<unnamed>";
+          in
+          throw ''
+            kubix: post-processor mutation failed for: "${processorName}"
+
+            manifest information:
+              apiVersion: "${manifest.apiVersion}"
+              kind: "${manifest.kind}"
+              name: "${manifest.metadata.name or "<null>"}"
+              namespace: "${manifest.metadata.namespace or "<null>"}"
+          ''
       else
         manifest
     ) manifest postProcessors;
