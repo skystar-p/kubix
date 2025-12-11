@@ -378,3 +378,19 @@ If a Helm chart contains `CustomResourceDefinition`, Kubix will automatically im
     };
 }
 ```
+
+## Use Post-processors to tailor your output
+
+You can use `postProcessors` option to mutate your final output to tailor for your need. This kind of "bulk-processor" is useful in some kind of cases, for example:
+
+* You want to "enforce" labels or annotations to your resources to track your cloud cost.
+* You want to remove the whole manifest if some conditions are met.
+* You want to customize your helm chart output further, but there is no `values` knobs to control that.
+
+All manifests are validated after the post-processors are applied, so you don't have to worry about your mistake in post-processor functions. Nice!
+
+Use it like this:
+
+```nix
+TODO
+```
