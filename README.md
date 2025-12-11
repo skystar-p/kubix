@@ -2,6 +2,16 @@
 
 A Kubernetes manifest generator using Nix.
 
+## Table of Contents
+
+- [Basic Usage](#basic-usage)
+- [Validating your manifests](#validating-your-manifests)
+- [Use your custom JSON Schema](#use-your-custom-json-schema)
+- [Use CustomResourceDefinition instead](#use-customresourcedefinition-instead)
+- [Using Helm chart](#using-helm-chart)
+  - [Using Helm chart containing CustomResourceDefinition resources](#using-helm-chart-containing-customresourcedefinition-resources)
+- [Use Post-processors to tailor your output](#use-post-processors-to-tailor-your-output)
+
 ## Basic Usage
 
 Write your Kubernetes manifest with your familiar Nix language, like this.
