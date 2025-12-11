@@ -97,23 +97,12 @@ All of your given manifests are strictly validated with JSON Schema. See this ex
 ```nix
 # flake.nix
 {
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    kubix.url = "github:skystar-p/kubix";
+  # ...
+
+  # use `kubix.lib.buildManifests` to validate the manifest and produce output!
+  packages.default = kubix.lib.buildManifests system {
+    manifests = import ./manifest.nix;
   };
-
-  outputs = inputs@{ nixpkgs, flake-parts, kubix, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
-
-      perSystem = { system, lib, ... }: {
-        # use `kubix.lib.buildManifests` to validate the manifest and produce output!
-        packages.default = kubix.lib.buildManifests system {
-          manifests = import ./manifest.nix;
-        };
-      };
-    };
 }
 ```
 
@@ -174,24 +163,13 @@ Predefined schemas in this repository may be not enough for your manifest use ca
 ```nix
 # flake.nix
 {
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    kubix.url = "github:skystar-p/kubix";
+  # ...
+
+  packages.default = kubix.lib.buildManifests system {
+    # provide your own schema!
+    schemas = import ./schema.nix;
+    manifests = import ./manifest.nix;
   };
-
-  outputs = inputs@{ nixpkgs, flake-parts, kubix, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
-
-      perSystem = { system, lib, ... }: {
-        packages.default = kubix.lib.buildManifests system {
-          # provide your own schema!
-          schemas = import ./schema.nix;
-          manifests = import ./manifest.nix;
-        };
-      };
-    };
 }
 ```
 
@@ -253,24 +231,13 @@ Worried about not having a JSON schema files? No sweat. Kubix can understand `Cu
 ```nix
 # flake.nix
 {
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    kubix.url = "github:skystar-p/kubix";
+  # ...
+
+  packages.default = kubix.lib.buildManifests system {
+    # provide CustomResourceDefinition yamls!
+    crds = import ./crd.nix;
+    manifests = import ./manifest.nix;
   };
-
-  outputs = inputs@{ nixpkgs, flake-parts, kubix, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
-
-      perSystem = { system, lib, ... }: {
-        packages.default = kubix.lib.buildManifests system {
-          # provide CustomResourceDefinition yamls!
-          crds = import ./crd.nix;
-          manifests = import ./manifest.nix;
-        };
-      };
-    };
 }
 ```
 
@@ -301,22 +268,11 @@ Here's the thing. Kubix can include arbitrary Helm charts in your manifest and v
 ```nix
 # flake.nix
 {
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    kubix.url = "github:skystar-p/kubix";
+  # ...
+
+  packages.default = kubix.lib.buildManifests system {
+    helmCharts = import ./charts.nix;
   };
-
-  outputs = inputs@{ nixpkgs, flake-parts, kubix, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
-
-      perSystem = { system, lib, ... }: {
-        packages.default = kubix.lib.buildManifests system {
-          helmCharts = import ./charts.nix;
-        };
-      };
-    };
 }
 ```
 
@@ -368,24 +324,13 @@ If a Helm chart contains `CustomResourceDefinition`, Kubix will automatically im
 ```nix
 # flake.nix
 {
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    kubix.url = "github:skystar-p/kubix";
+  # ...
+
+  packages.default = kubix.lib.buildManifests system {
+    # No need to provide CRD options.
+    helmCharts = import ./charts.nix;
+    manifests = import ./manifest.nix;
   };
-
-  outputs = inputs@{ nixpkgs, flake-parts, kubix, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
-
-      perSystem = { system, lib, ... }: {
-        packages.default = kubix.lib.buildManifests system {
-          # No need to provide CRD options.
-          helmCharts = import ./charts.nix;
-          manifests = import ./manifest.nix;
-        };
-      };
-    };
 }
 ```
 
@@ -443,23 +388,12 @@ Use it like this:
 ```nix
 # flake.nix
 {
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    kubix.url = "github:skystar-p/kubix";
+  # ...
+
+  packages.default = kubix.lib.buildManifests system {
+    manifests = import ./manifest.nix;
+    postProcessors = import ./postProcessors.nix;
   };
-
-  outputs = inputs@{ nixpkgs, flake-parts, kubix, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
-
-      perSystem = { system, lib, ... }: {
-        packages.default = kubix.lib.buildManifests system {
-          manifests = import ./manifest.nix;
-          postProcessors = import ./postProcessors.nix;
-        };
-      };
-    };
 }
 ```
 
