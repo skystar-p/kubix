@@ -392,5 +392,110 @@ All manifests are validated after the post-processors are applied, so you don't 
 Use it like this:
 
 ```nix
-TODO
+# manifest.nix
+{
+  example-configmap = {
+    apiVersion = "v1";
+    kind = "ConfigMap";
+    metadata = {
+      name = "example-configmap";
+      namespace = "default";
+    };
+    data = {
+      "cool-data" = "foo";
+      "awesome-data" = "bar";
+      "boring-data" = "baz";
+    };
+  };
+}
+```
+
+```nix
+# postProcessors.nix
+[
+  {
+    name = "add exciting data";
+    predicate = manifest: manifest.kind == "ConfigMap" && manifest.metadata.name == "example-configmap";
+    mutate =
+      manifest:
+      let
+        mutated = lib.recursiveUpdate manifest {
+          data = {
+            "exciting-data" = "qux";
+          };
+        };
+      in
+      mutated;
+  }
+]
+```
+
+```nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    kubix.url = "github:skystar-p/kubix";
+  };
+
+  outputs = inputs@{ nixpkgs, flake-parts, kubix, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
+
+      perSystem = { system, lib, ... }: {
+        packages.default = kubix.lib.buildManifests system {
+          manifests = import ./manifest.nix;
+          postProcessors = import ./postProcessors.nix;
+        };
+      };
+    };
+}
+```
+
+Then the result looks like:
+```json
+{
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "example-configmap",
+    "namespace": "default"
+  },
+  "data": {
+    "awesome-data": "bar",
+    "boring-data": "baz",
+    "cool-data": "koo",
+    "exciting-data": "qux" # <-- this is added by post-processor!
+  }
+}
+```
+
+You can also do your own validation on your manifests. Just `throw` the error in `mutate` function. If you do like this:
+
+```nix
+# postProcessors.nix
+[
+  {
+    name = "no boring data";
+    predicate = manifest: manifest.kind == "ConfigMap" && manifest.metadata.name == "example-configmap";
+    mutate =
+      manifest:
+      if builtins.hasAttr "boring-data" manifest.data then
+        throw "No boring data allowed in my manifests!"
+      else
+        manifest;
+  }
+]
+```
+
+Then the build will fail like this message:
+```
+error: kubix: post-processor mutation failed for: "no boring data"
+
+manifest information:
+  apiVersion: "v1"
+  kind: "ConfigMap"
+  name: "example-configmap"
+  namespace: "default"
 ```
