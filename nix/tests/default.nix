@@ -1,21 +1,16 @@
 {
+  self,
   pkgs,
-  lib,
   ...
 }:
 let
   mkModuleTest =
     testConfig:
     let
-      eval = lib.evalModules {
+      eval = pkgs.lib.evalModules {
         modules = [
-          ../modules/kubix.nix
-          {
-            _module.args = {
-              inherit pkgs lib;
-              config = { };
-            };
-          }
+          { _module.args = { inherit pkgs; }; }
+          self.nixosModules.kubix
           {
             kubix = (
               {

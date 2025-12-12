@@ -3,66 +3,53 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
   outputs =
-    inputs@{
+    {
+      self,
       nixpkgs,
-      flake-parts,
       ...
     }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      flake = {
-        nixosModules.kubix = ./nix/modules/kubix.nix;
-
-        lib.buildManifests =
-          system: kubixConfig:
-          let
-            pkgs = import nixpkgs { inherit system; };
-            lib = pkgs.lib;
-            eval = lib.evalModules {
-              modules = [
-                ./nix/modules/kubix.nix
-                {
-                  _module.args = {
-                    inherit pkgs lib;
-                  };
-                }
-                {
-                  kubix = {
-                    enable = true;
-                  }
-                  // kubixConfig;
-                }
-              ];
-            };
-          in
-          eval.config.kubix.result;
+    let
+      forAllSystems =
+        function:
+        nixpkgs.lib.genAttrs [
+          "x86_64-linux"
+          "x86_64-darwin"
+          "aarch64-linux"
+          "aarch64-darwin"
+        ] (system: function nixpkgs.legacyPackages.${system});
+    in
+    {
+      nixosModules = {
+        kubix = import ./nix/modules/kubix.nix;
       };
 
-      systems = [
-        "x86_64-linux"
-        "x86_64-darwin"
-        "aarch64-linux"
-        "aarch64-darwin"
-      ];
+      packages = forAllSystems (pkgs: {
+        kubix-validator = pkgs.callPackage ./nix/pkgs/kubix-validator { };
+      });
 
-      perSystem =
-        {
-          pkgs,
-          lib,
-          system,
-          ...
-        }:
-        {
-          packages = {
-            kubix-validator = pkgs.callPackage ./nix/pkgs/kubix-validator { };
+      lib.buildManifests = forAllSystems (
+        pkgs: kubixConfig:
+        let
+          eval = pkgs.lib.evalModules {
+            modules = [
+              { _module.args = { inherit pkgs; }; }
+              self.nixosModules.kubix
+              {
+                kubix = {
+                  enable = true;
+                }
+                // kubixConfig;
+              }
+            ];
           };
+        in
+        eval.config.kubix.result
+      );
 
-          checks = import ./nix/tests {
-            inherit pkgs lib;
-          };
-        };
+      checks = forAllSystems (pkgs: (import ./nix/tests { inherit pkgs self; }));
     };
+
 }
