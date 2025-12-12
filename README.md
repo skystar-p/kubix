@@ -53,21 +53,18 @@ and use it in your flake.
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-parts.url = "github:hercules-ci/flake-parts";
+    flake-utils.url = "github:numtide/flake-utils";
     kubix.url = "github:skystar-p/kubix";
   };
 
-  outputs = inputs@{ nixpkgs, flake-parts, kubix, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
-
-      perSystem = { system, lib, ... }: {
-        # use `kubix.lib.buildManifests` to validate the manifest and produce output!
-        packages.default = kubix.lib.buildManifests system {
-          manifests = import ./manifest.nix;
-        };
+  outputs =
+    { flake-utils, kubix, ... }:
+    flake-utils.lib.eachDefaultSystem (system: {
+      # use `kubix.lib.buildManifests` to validate the manifest and produce output!
+      packages.default = kubix.lib.buildManifests system {
+        manifests = import ./manifest.nix;
       };
-    };
+    });
 }
 ```
 
