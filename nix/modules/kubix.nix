@@ -7,6 +7,26 @@
 let
   cfg = config.kubix;
 
+  manifestsOption = lib.mkOption {
+    type = lib.types.attrsOf (
+      lib.types.submodule {
+        freeformType = deepMergeAttrs;
+        options = {
+          apiVersion = lib.mkOption {
+            type = lib.types.str;
+            description = "apiVersion of the manifest";
+          };
+          kind = lib.mkOption {
+            type = lib.types.str;
+            description = "kind of the manifest";
+          };
+        };
+      }
+    );
+    description = "manifests definition";
+    default = { };
+  };
+
   schemasOption = lib.mkOption {
     type = lib.types.listOf (
       lib.types.submodule {
@@ -204,39 +224,21 @@ in
   options.kubix = {
     enable = lib.mkEnableOption "Enable kubix module";
 
-    kubernetesVersion = lib.mkOption {
-      type = lib.types.str;
-      description = "kubernetes version to target. used for selecting appropriate predefined schemas.";
-      default = "1.34";
-    };
+    manifests = manifestsOption;
 
     schemas = schemasOption;
 
     crds = crdsOption;
 
-    manifests = lib.mkOption {
-      type = lib.types.attrsOf (
-        lib.types.submodule {
-          freeformType = deepMergeAttrs;
-          options = {
-            apiVersion = lib.mkOption {
-              type = lib.types.str;
-              description = "apiVersion of the manifest";
-            };
-            kind = lib.mkOption {
-              type = lib.types.str;
-              description = "kind of the manifest";
-            };
-          };
-        }
-      );
-      description = "manifests definition";
-      default = { };
-    };
-
     helmCharts = helmChartsOption;
 
     postProcessors = postProcessorsOption;
+
+    kubernetesVersion = lib.mkOption {
+      type = lib.types.str;
+      description = "kubernetes version to target. used for selecting appropriate predefined schemas.";
+      default = "1.34";
+    };
 
     result = lib.mkOption {
       type = lib.types.package;
