@@ -4,28 +4,10 @@
   ...
 }:
 let
-  mkModuleTest =
-    testConfig:
-    let
-      eval = pkgs.lib.evalModules {
-        modules = [
-          { _module.args = { inherit pkgs; }; }
-          self.nixosModules.kubix
-          {
-            kubix = (
-              {
-                enable = true;
-              }
-              // testConfig
-            );
-          }
-        ];
-      };
-    in
-    eval.config.kubix.result;
+  buildManifests = self.lib.buildManifests pkgs.system;
 in
 {
-  simpleConfigMap = mkModuleTest {
+  simpleConfigMap = buildManifests {
     manifests = {
       example-configmap = {
         apiVersion = "v1";
@@ -42,7 +24,7 @@ in
     };
   };
 
-  certManagerCertificate = mkModuleTest {
+  certManagerCertificate = buildManifests {
     schemas = [
       {
         apiVersion = "cert-manager.io/v1";
@@ -71,7 +53,7 @@ in
     };
   };
 
-  certManagerCertificateWithCrd = mkModuleTest {
+  certManagerCertificateWithCrd = buildManifests {
     crds = [
       {
         url = "https://raw.githubusercontent.com/cert-manager/cert-manager/02d1e1985e5c94059c5a2c3653b3d98c27a9c8f9/deploy/crds/cert-manager.io_certificates.yaml";
@@ -98,7 +80,7 @@ in
     };
   };
 
-  simpleHelmChart = mkModuleTest {
+  simpleHelmChart = buildManifests {
     helmCharts = {
       cert-manager = {
         repo = "https://charts.jetstack.io";

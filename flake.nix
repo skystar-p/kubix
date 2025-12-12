@@ -30,9 +30,10 @@
         kubix-validator = pkgs.callPackage ./nix/pkgs/kubix-validator { };
       });
 
-      lib.buildManifests = forAllSystems (
-        pkgs: kubixConfig:
+      lib.buildManifests =
+        system: kubixConfig:
         let
+          pkgs = import nixpkgs { inherit system; };
           eval = pkgs.lib.evalModules {
             modules = [
               { _module.args = { inherit pkgs; }; }
@@ -46,10 +47,9 @@
             ];
           };
         in
-        eval.config.kubix.result
-      );
+        eval.config.kubix.result;
 
-      checks = forAllSystems (pkgs: (import ./nix/tests { inherit pkgs self; }));
+      checks = forAllSystems (pkgs: (import ./nix/tests { inherit self pkgs; }));
     };
 
 }
