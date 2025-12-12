@@ -192,6 +192,58 @@ let
     default = [ ];
   };
 
+  outputTypeOption = lib.mkOption {
+    type = lib.types.submodule {
+      options = {
+        type = lib.mkOption {
+          type = lib.types.enum [
+            "json"
+            "helm"
+          ];
+          description = "output type";
+          default = "json";
+        };
+
+        helmOptions = lib.mkOption {
+          type = lib.types.nullOr lib.types.submodule {
+            options = {
+              apiVersion = lib.mkOption {
+                type = lib.types.str;
+                description = "chart API version";
+                default = "v2";
+              };
+
+              name = lib.mkOption {
+                type = lib.types.str;
+                description = "name of the chart";
+              };
+
+              version = lib.mkOption {
+                type = lib.types.str;
+                description = "version of the chart";
+                default = "0.0.0";
+              };
+
+              appVersion = lib.mkOption {
+                type = lib.types.str;
+                default = "0.0.0";
+                description = "version of the app that this contains";
+              };
+
+              tarball = lib.mkOption {
+                type = lib.types.bool;
+                description = "whether to package the helm chart as a tarball";
+                default = false;
+              };
+            };
+            description = "options for helm output type";
+            default = null;
+          };
+        };
+      };
+    };
+  };
+
   validatorLib = import ../lib/validator.nix {
     inherit
       pkgs
@@ -239,6 +291,8 @@ in
       description = "kubernetes version to target. used for selecting appropriate predefined schemas.";
       default = "1.34";
     };
+
+    ouptutType = outputTypeOption;
 
     result = lib.mkOption {
       type = lib.types.package;
