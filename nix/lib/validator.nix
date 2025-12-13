@@ -4,12 +4,18 @@
   config,
   ...
 }:
+
 let
   generator = import ./generator.nix { inherit pkgs lib config; };
-  crdDir = generator.crdDir;
-  schemaDir = generator.schemaDir;
-  allManifests = generator.allManifests;
+  inherit (generator)
+    crdDir
+    schemaDir
+    allManifests
+    helmOutput
+    ;
 
+  useHelmOutput = config.kubix.outputType.type == "helm";
+  useHelmTarball = useHelmOutput && config.kubix.outputType.helmOptions.tarball or false;
   validatorPkg = pkgs.callPackage ../pkgs/kubix-validator { };
 in
 {
@@ -35,7 +41,22 @@ in
           --schema-dir $tempDir/schemas \
           --crd-dir $tempDir/crds
 
-        mkdir -p $out
-        cp -r $manifestDir/. $out/
+        ${
+          if useHelmOutput then
+            if useHelmTarball then
+              ''
+                cp ${helmOutput} $out
+              ''
+            else
+              ''
+                mkdir -p $out
+                cp -r ${helmOutput}/. $out
+              ''
+          else
+            ''
+              mkdir -p $out
+              cp -r $manifestDir/. $out/
+            ''
+        }
       '';
 }

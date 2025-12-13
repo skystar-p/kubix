@@ -313,7 +313,73 @@ let
       helmManifests
     ];
   };
+
+  helmOutput =
+    let
+      helmOptions = config.kubix.outputType.helmOptions;
+      chartYAML = ''
+        apiVersion: "${helmOptions.apiVersion}"
+        name: "${helmOptions.name}"
+        version: "${helmOptions.version}"
+        appVersion: "${helmOptions.appVersion}"
+      '';
+    in
+    pkgs.stdenv.mkDerivation {
+      name = "helm-output-${helmOptions.name}-${helmOptions.version}";
+
+      nativeBuildInputs = [
+        pkgs.yq-go
+      ]
+      ++ lib.optionals helmOptions.tarball [
+        pkgs.kubernetes-helm
+      ];
+
+      phases = [ "installPhase" ];
+
+      installPhase = ''
+        mkdir -p $out
+        tempDir=$(mktemp -d)
+
+        chartDir="$tempDir/${helmOptions.name}"
+        mkdir -p "$chartDir/templates"
+
+        cat <<EOF > "$chartDir/Chart.yaml"
+        ${chartYAML}
+        EOF
+
+        # convert JSON manifests to YAML and copy to templates
+        for f in "${allManifests}"/**/*.json; do
+          if [ -f "$f" ]; then
+            dirName=$(dirname "$f")
+            fileName=$(basename "$dirName" ".json")
+            mkdir -p "$chartDir/templates/$dirName"
+            yq -P '.' "$f" > "$chartDir/templates/$dirName/$fileName.yaml"
+          fi
+        done
+        ${
+          if helmOptions.tarball then
+            ''
+              # if not packaging as tarball, copy the chart directly to output
+              cp -r "$chartDir" "$out/"
+            ''
+          else
+            ''
+              # dereference all symlinks
+              tempPackageDir="$tempDir/tempChartDir"
+              cp -rL "$chartDir" "$tempPackageDir"
+              chmod -R u+w "$tempPackageDir"
+              helm package "$tempPackageDir" --destination "$out"
+            ''
+        }
+        rm -rf "$tempDir"
+      '';
+    };
 in
 {
-  inherit schemaDir crdDir allManifests;
+  inherit
+    schemaDir
+    crdDir
+    allManifests
+    helmOutput
+    ;
 }

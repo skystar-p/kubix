@@ -292,7 +292,7 @@ in
       default = "1.34";
     };
 
-    ouptutType = outputTypeOption;
+    outputType = outputTypeOption;
 
     result = lib.mkOption {
       type = lib.types.package;
