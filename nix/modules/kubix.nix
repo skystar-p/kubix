@@ -205,7 +205,7 @@ let
         };
 
         helmOptions = lib.mkOption {
-          type = lib.types.nullOr lib.types.submodule {
+          type = lib.types.submodule {
             options = {
               apiVersion = lib.mkOption {
                 type = lib.types.str;
@@ -236,11 +236,16 @@ let
                 default = false;
               };
             };
-            description = "options for helm output type";
-            default = null;
           };
+
+          description = "helm output type options";
         };
       };
+    };
+
+    description = "output type definition";
+    default = {
+      type = "json";
     };
   };
 
