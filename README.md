@@ -24,6 +24,7 @@ If you're tired of debugging YAML in production, give Kubix a try. It makes writ
 - [Using Helm chart](#using-helm-chart)
   - [Using Helm chart containing CustomResourceDefinition resources](#using-helm-chart-containing-customresourcedefinition-resources)
 - [Use Post-processors to tailor your output](#use-post-processors-to-tailor-your-output)
+- [Build output as Helm chart](#build-output-as-helm-chart)
 
 ## Basic Usage
 
@@ -444,4 +445,36 @@ manifest information:
   kind: "ConfigMap"
   name: "example-configmap"
   namespace: "default"
+```
+
+## Build output as Helm chart
+
+You can make your final output into Helm chart. This can be useful if you need Helm chart in your CI/CD pipeline.
+
+```nix
+# flake.nix
+{
+  # ...
+
+  packages.default = kubix.lib.buildManifests system {
+    manifests = import ./manifest.nix;
+
+    outputType = {
+      type = "helm";
+
+      helmOptions = {
+        name = "test-helm";
+        tarball = true; # default is false
+      };
+    };
+  };
+}
+```
+
+Then you can call `helm template` command to output.
+
+```sh
+nix build
+
+helm template "my-helm-chart" ./result
 ```
