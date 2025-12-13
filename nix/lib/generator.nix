@@ -349,12 +349,10 @@ let
 
         # convert JSON manifests to YAML and copy to templates
         for f in "${allManifests}"/**/*.json; do
-          if [ -f "$f" ]; then
-            dirName=$(dirname "$f")
-            fileName=$(basename "$dirName" ".json")
-            mkdir -p "$chartDir/templates/$dirName"
-            yq -P '.' "$f" > "$chartDir/templates/$dirName/$fileName.yaml"
-          fi
+          dirName=$(dirname "$f")
+          fileName=$(basename "$dirName" ".json")
+          mkdir -p "$chartDir/templates/$dirName"
+          yq -P '.' "$f" > "$chartDir/templates/$dirName/$fileName.yaml"
         done
         ${
           if helmOptions.tarball then
