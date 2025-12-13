@@ -348,11 +348,11 @@ let
         EOF
 
         # convert JSON manifests to YAML and copy to templates
-        for f in "${allManifests}"/**/*.json; do
-          dirName=$(dirname "$f")
-          fileName=$(basename "$dirName" ".json")
-          mkdir -p "$chartDir/templates/$dirName"
-          yq -P '.' "$f" > "$chartDir/templates/$dirName/$fileName.yaml"
+        find "${allManifests}/" -name "*.json" | while read -r f; do
+          relFileName="''${f##${allManifests}/}"
+          relDirName="$(dirname "$relFileName")"
+          mkdir -p "$chartDir/templates/$relDirName"
+          yq -P '.' "$f" > "$chartDir/templates/$relFileName.yaml"
         done
         ${
           if helmOptions.tarball then
