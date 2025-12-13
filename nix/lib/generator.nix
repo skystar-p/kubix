@@ -366,7 +366,7 @@ let
           else
             ''
               # if not packaging as tarball, copy the chart directly to output
-              cp -r "$chartDir" "$out/"
+              cp -r "$chartDir/." "$out/"
             ''
         }
         rm -rf "$tempDir"
