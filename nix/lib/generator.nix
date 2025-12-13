@@ -337,7 +337,6 @@ let
       phases = [ "installPhase" ];
 
       installPhase = ''
-        mkdir -p $out
         tempDir=$(mktemp -d)
 
         chartDir="$tempDir/${helmOptions.name}"
@@ -359,12 +358,15 @@ let
             ''
               # dereference all symlinks
               tempPackageDir="$tempDir/tempChartDir"
-              cp -rL "$chartDir" "$tempPackageDir"
+              mkdir -p "$tempPackageDir"
+              cp -rL "$chartDir/." "$tempPackageDir"
               chmod -R u+w "$tempPackageDir"
-              helm package "$tempPackageDir" --destination "$out"
+              helm package "$tempPackageDir" --destination "$tempDir"
+              mv "$tempDir/${helmOptions.name}-${helmOptions.version}.tgz" "$out"
             ''
           else
             ''
+              mkdir -p $out
               # if not packaging as tarball, copy the chart directly to output
               cp -r "$chartDir/." "$out/"
             ''
