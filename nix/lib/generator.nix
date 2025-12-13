@@ -359,16 +359,16 @@ let
         ${
           if helmOptions.tarball then
             ''
-              # if not packaging as tarball, copy the chart directly to output
-              cp -r "$chartDir" "$out/"
-            ''
-          else
-            ''
               # dereference all symlinks
               tempPackageDir="$tempDir/tempChartDir"
               cp -rL "$chartDir" "$tempPackageDir"
               chmod -R u+w "$tempPackageDir"
               helm package "$tempPackageDir" --destination "$out"
+            ''
+          else
+            ''
+              # if not packaging as tarball, copy the chart directly to output
+              cp -r "$chartDir" "$out/"
             ''
         }
         rm -rf "$tempDir"
