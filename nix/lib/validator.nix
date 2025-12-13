@@ -20,7 +20,7 @@ let
 in
 {
   output =
-    pkgs.runCommand "validator"
+    pkgs.runCommand "kubix-manifests"
       {
         env = {
           inherit crdDir schemaDir;
