@@ -406,8 +406,10 @@ let
           # yq -P '.' "$f" > "$chartDir/templates/$relFileName.yaml"
           yq -P '.' "$f" > "$tempDir/beforeSed.yaml"
           # replace placeholders with raw helm template syntax
-          sed -E 's/"\$\$KUBIX_HELM_RAW\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW\$\$"/\1/g' "$tempDir/beforeSed.yaml" > "$chartDir/templates/$relFileName.yaml"
-          sed -E 's/"\$\$KUBIX_HELM_RAW_STRING\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW_STRING\$\$"/"\1"/g' "$tempDir/beforeSed.yaml" > "$chartDir/templates/$relFileName.yaml"
+          cat "$tempDir/beforeSed.yaml" | \
+            sed -E 's/"\$\$KUBIX_HELM_RAW\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW\$\$"/\1/g' | \
+            sed -E 's/"\$\$KUBIX_HELM_RAW_STRING\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW_STRING\$\$"/"\1"/g' \
+            > "$chartDir/templates/$relFileName.yaml"
         done
         ${
           if helmOptions.tarball then
