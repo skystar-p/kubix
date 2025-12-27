@@ -57,7 +57,14 @@ let
       replace =
         v:
         if builtins.isAttrs v && v ? __kubixHelmValue then
-          placeholder ("{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}")
+          let
+            templateStr = placeholder (
+              "{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}"
+            );
+            finalStr =
+              if builtins.isString v.__kubixHelmValue.default then ''"${templateStr}"'' else templateStr;
+          in
+          finalStr
         else if builtins.isList v then
           map replace v
         else if builtins.isAttrs v then
@@ -398,6 +405,7 @@ let
           mkdir -p "$chartDir/templates/$relDirName"
           # yq -P '.' "$f" > "$chartDir/templates/$relFileName.yaml"
           yq -P '.' "$f" > "$tempDir/beforeSed.yaml"
+          # replace placeholders with raw helm template syntax
           sed -E 's/"\$\$KUBIX_HELM_RAW\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW\$\$"/\1/g' "$tempDir/beforeSed.yaml" > "$chartDir/templates/$relFileName.yaml"
         done
         ${
