@@ -89,11 +89,15 @@ let
         manifest = helmValueProcessor x.manifest;
       }) processedManifests;
     in
+    helmValueReplacedManifests;
+
+  userManifestFiles =
+    helmValueProcessor:
     pkgs.linkFarm "manifest-dir" (
       map (x: {
         name = "${x.name}.json";
         path = pkgs.writeText x.name (builtins.toJSON x.manifest);
-      }) helmValueReplacedManifests
+      }) (userManifests helmValueProcessor)
     );
 
   predefinedSchemas =
@@ -353,7 +357,7 @@ let
   allManifests = pkgs.symlinkJoin {
     name = "all-manifests";
     paths = [
-      (userManifests replaceKubixHelmValuesWithDefault)
+      (userManifestFiles replaceKubixHelmValuesWithDefault)
       helmManifests
     ];
   };
@@ -361,10 +365,29 @@ let
   allManifestsWithHelmPlaceholders = pkgs.symlinkJoin {
     name = "all-manifests-with-helm-placeholders";
     paths = [
-      (userManifests replaceKubixHelmValuesWithPlaceholder)
+      (userManifestFiles replaceKubixHelmValuesWithPlaceholder)
       helmManifests
     ];
   };
+
+  collectedHelmValues =
+    let
+      updatePath =
+        path: v: acc:
+        lib.recursiveUpdate acc (lib.attrs.setAttrsByPath path v);
+      update =
+        acc: v:
+        if builtins.isAttrs v && v ? __kubixHelmValue then
+          updatePath v.__kubixHelmValue.path v.__kubixHelmValue.default acc
+        else if builtins.isList v then
+          lib.foldl' update acc v
+        else if builtins.isAttrs v then
+          lib.foldl' update acc (builtins.attrValues v)
+        else
+          acc;
+      valuesAttr = lib.foldl' update { } (lib.mapAttrsToList (_: v: v.manifest) (userManifests (x: x)));
+    in
+    valuesAttr;
 
   helmOutput =
     let
@@ -411,6 +434,10 @@ let
             sed -E 's/"\$\$KUBIX_HELM_RAW_STRING\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW_STRING\$\$"/"\1"/g' \
             > "$chartDir/templates/$relFileName.yaml"
         done
+        # write values.yaml
+        yq -P '.' > "$chartDir/values.yaml" <<EOF
+          ${builtins.toJSON collectedHelmValues}
+        EOF
         ${
           if helmOptions.tarball then
             ''
