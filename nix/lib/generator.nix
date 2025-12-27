@@ -54,7 +54,7 @@ let
   replaceKubixHelmValuesWithPlaceholder =
     let
       mkPlaceholder =
-        expr: type:
+        type: expr:
         let
           placeholder = if type == "string" then "KUBIX_HELM_RAW_STRING" else "KUBIX_HELM_RAW";
         in
@@ -62,7 +62,9 @@ let
       replace =
         v:
         if builtins.isAttrs v && v ? __kubixHelmValue then
-          mkPlaceholder ("{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}")
+          mkPlaceholder (builtins.typeOf v.__kubixHelmValue.default) (
+            "{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}"
+          )
         else if builtins.isList v then
           map replace v
         else if builtins.isAttrs v then
