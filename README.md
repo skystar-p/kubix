@@ -13,6 +13,7 @@ Kubix solves this by:
 - **Validating Helm outputs**: Render Helm charts and validate the result. Finally know if your `values.yaml` produces valid Kubernetes resources.
 - **Supporting CRDs**: Automatically extract schemas from `CustomResourceDefinition`s. Your cert-manager `Certificate`s and Istio `VirtualService`s get validated too.
 - **Post-Process your final result**: You have full control over your manifests, powered by Nix function. No more custom forked Helm charts for your real needs.
+- **Build Helm chart with validations**: You can even make basic Helm chart with custom values, and the chart rendered with provided default values are also validated.
 
 If you're tired of debugging YAML in production, give Kubix a try. It makes writing manifest a more pleasant experience.
 
@@ -545,4 +546,4 @@ helm template example-chart result --set configMap.coolDataValue='This is custom
 }
 ```
 
-If you did not specified ouptut type as `helm`, default values provided are used to render manifests. Also, all validation processes are done with default values, so you don't have to worry about your mistake when using `kubix.lib.helmValue`. Just be careful when you provider your custom `values.yaml` when templating, because Helm cannot validate your input.
+If you did not specified ouptut type as `helm`, default values provided are used to render manifests. Also, all validation processes are done with default values, so you don't have to worry about your mistake when using `kubix.lib.helmValue`. Just be careful when you provide your custom `values.yaml` when templating, because Helm cannot validate your input.
