@@ -36,6 +36,21 @@ let
         manifest
     ) manifest postProcessors;
 
+  replaceKubixHelmValuesWithDefault =
+    let
+      replace =
+        v:
+        if builtins.isAttrs v && v ? __kubixHelmValue then
+          v.__kubixHelmValue.default
+        else if builtins.isList v then
+          map replace v
+        else if builtins.isAttrs v then
+          builtins.mapAttrs (_: val: replace val) v
+        else
+          v;
+    in
+    replace;
+
   userManifests =
     let
       processedManifests = lib.filter (x: x.manifest != null) (
@@ -44,12 +59,17 @@ let
           manifest = applyPostProcessors v config.kubix.postProcessors;
         }) config.kubix.manifests
       );
+
+      helmValueReplacedManifests = lib.map (x: {
+        name = x.name;
+        manifest = replaceKubixHelmValuesWithDefault x.manifest;
+      }) processedManifests;
     in
     pkgs.linkFarm "manifest-dir" (
       map (x: {
         name = "${x.name}.json";
         path = pkgs.writeText x.name (builtins.toJSON x.manifest);
-      }) processedManifests
+      }) helmValueReplacedManifests
     );
 
   predefinedSchemas =

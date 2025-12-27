@@ -5,6 +5,7 @@
 }:
 let
   buildManifests = self.lib.buildManifests pkgs.system;
+  helmValue = self.lib.helmValue;
 in
 {
   simpleConfigMap = buildManifests {
@@ -110,6 +111,24 @@ in
             name = "letsencrypt-prod";
             kind = "ClusterIssuer";
           };
+        };
+      };
+    };
+  };
+
+  simpleConfigMapWithHelmValue = buildManifests {
+    manifests = {
+      example-configmap = {
+        apiVersion = "v1";
+        kind = "ConfigMap";
+        metadata = {
+          name = "example-configmap";
+          namespace = "default";
+        };
+        data = {
+          "example.property.1" = "value1";
+          "example.property.2" = "value2";
+          "example.property.3" = helmValue [ "test" "property" ] "defaultValue";
         };
       };
     };
