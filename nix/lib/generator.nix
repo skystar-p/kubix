@@ -57,7 +57,7 @@ let
       replace =
         v:
         if builtins.isAttrs v && v ? __kubixHelmValue then
-          placeholder "{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}"
+          placeholder ("{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}")
         else if builtins.isList v then
           map replace v
         else if builtins.isAttrs v then
