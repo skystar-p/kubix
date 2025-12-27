@@ -25,6 +25,7 @@ If you're tired of debugging YAML in production, give Kubix a try. It makes writ
   - [Using Helm chart containing CustomResourceDefinition resources](#using-helm-chart-containing-customresourcedefinition-resources)
 - [Use Post-processors to tailor your output](#use-post-processors-to-tailor-your-output)
 - [Build output as Helm chart](#build-output-as-helm-chart)
+  - [Add Helm template variables](#add-helm-template-variables)
 
 ## Basic Usage
 
@@ -478,3 +479,70 @@ nix build
 
 helm template "my-helm-chart" ./result
 ```
+
+### Add Helm template variables
+
+Kubix provides special type named `kubix.lib.helmValue`, which can be rendered later as Helm template string. You can build basic Helm charts which accepts custom `values.yaml`.
+
+```nix
+# manifest.nix
+{
+  example-configmap = {
+    apiVersion = "v1";
+    kind = "ConfigMap";
+    metadata = {
+      name = "example-configmap";
+      namespace = "default";
+    };
+    data = {
+      # `kubix.lib.helmValue` receives `yaml path` and `default` value.
+      "cool-data" = kubix.lib.helmValue [ "configMap" "coolDataValue" ] "defaultValue";
+    };
+  };
+}
+```
+
+Then if you set output type as `helm`, that `kubix.lib.helmValue` types are rendered as Helm template strings.
+
+```sh
+nix build
+
+# you can call `helm template` to build output
+helm template example-chart result
+```
+
+Templated result is:
+```json
+{
+  "apiVersion": "v1",
+  "data": {
+    "cool-data": "defaultValue" # <-- default value is provided
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "example-configmap",
+    "namespace": "default"
+  }
+}
+```
+
+If you pass `--set` arguments to set value parameters:
+```sh
+helm template example-chart result --set configMap.coolDataValue='This is custom value!'
+```
+
+```json
+{
+  "apiVersion": "v1",
+  "data": {
+    "cool-data": "This is custom value!" # <-- can be customized!
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "example-configmap",
+    "namespace": "default"
+  }
+}
+```
+
+If you did not specified ouptut type as `helm`, default values provided are used to render manifests. Also, all validation processes are done with default values, so you don't have to worry about your mistake when using `kubix.lib.helmValue`. Just be careful when you provider your custom `values.yaml` when templating, because Helm cannot validate your input.
