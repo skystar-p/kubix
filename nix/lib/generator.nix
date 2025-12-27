@@ -77,27 +77,26 @@ let
   userManifests =
     helmValueProcessor:
     let
-      processedManifests = lib.filter (x: x.manifest != null) (
-        lib.mapAttrsToList (k: v: {
-          name = k;
-          manifest = applyPostProcessors v config.kubix.postProcessors;
-        }) config.kubix.manifests
+      processedManifests = lib.filterAttrs (_: v: v != null) (
+        builtins.mapAttrs (_: v: applyPostProcessors v config.kubix.postProcessors) config.kubix.manifests
       );
-
-      helmValueReplacedManifests = lib.map (x: {
-        name = x.name;
-        manifest = helmValueProcessor x.manifest;
-      }) processedManifests;
+      helmValueReplacedManifests = builtins.mapAttrs (_: v: helmValueProcessor v) processedManifests;
     in
     helmValueReplacedManifests;
 
   userManifestFiles =
     helmValueProcessor:
     pkgs.linkFarm "manifest-dir" (
-      map (x: {
-        name = "${x.name}.json";
-        path = pkgs.writeText x.name (builtins.toJSON x.manifest);
-      }) (userManifests helmValueProcessor)
+      lib.mapAttrsToList (
+        k: v:
+        let
+          name = "${k}.json";
+        in
+        {
+          inherit name;
+          path = pkgs.writeText name (builtins.toJSON v);
+        }
+      ) (userManifests helmValueProcessor)
     );
 
   predefinedSchemas =
@@ -374,7 +373,7 @@ let
     let
       updatePath =
         path: v: acc:
-        lib.recursiveUpdate acc (lib.attrs.setAttrsByPath path v);
+        lib.recursiveUpdate acc (lib.attrsets.setAttrByPath path v);
       update =
         acc: v:
         if builtins.isAttrs v && v ? __kubixHelmValue then
@@ -385,7 +384,7 @@ let
           lib.foldl' update acc (builtins.attrValues v)
         else
           acc;
-      valuesAttr = lib.foldl' update { } (lib.mapAttrsToList (_: v: v.manifest) (userManifests (x: x)));
+      valuesAttr = lib.foldl' update { } (lib.mapAttrsToList (_: v: v) (userManifests (x: x)));
     in
     valuesAttr;
 
