@@ -53,18 +53,16 @@ let
 
   replaceKubixHelmValuesWithPlaceholder =
     let
-      placeholder = expr: "$$KUBIX_HELM_RAW$$(" + expr + ")$$END_KUBIX_HELM_RAW$$";
+      mkPlaceholder =
+        expr: type:
+        let
+          placeholder = if type == "string" then "KUBIX_HELM_RAW_STRING" else "KUBIX_HELM_RAW";
+        in
+        "$$${placeholder}$$(" + expr + ")$$END_${placeholder}$$";
       replace =
         v:
         if builtins.isAttrs v && v ? __kubixHelmValue then
-          let
-            templateStr = placeholder (
-              "{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}"
-            );
-            finalStr =
-              if builtins.isString v.__kubixHelmValue.default then ''"${templateStr}"'' else templateStr;
-          in
-          finalStr
+          mkPlaceholder ("{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}")
         else if builtins.isList v then
           map replace v
         else if builtins.isAttrs v then
@@ -407,6 +405,7 @@ let
           yq -P '.' "$f" > "$tempDir/beforeSed.yaml"
           # replace placeholders with raw helm template syntax
           sed -E 's/"\$\$KUBIX_HELM_RAW\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW\$\$"/\1/g' "$tempDir/beforeSed.yaml" > "$chartDir/templates/$relFileName.yaml"
+          sed -E 's/"\$\$KUBIX_HELM_RAW_STRING\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW_STRING\$\$"/"\1"/g' "$tempDir/beforeSed.yaml" > "$chartDir/templates/$relFileName.yaml"
         done
         ${
           if helmOptions.tarball then
