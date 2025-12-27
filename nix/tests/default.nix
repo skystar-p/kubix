@@ -132,5 +132,13 @@ in
         };
       };
     };
+
+    outputType = {
+      type = "helm";
+
+      helmOptions = {
+        name = "example-chart";
+      };
+    };
   };
 }

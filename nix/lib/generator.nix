@@ -51,7 +51,24 @@ let
     in
     replace;
 
+  replaceKubixHelmValuesWithPlaceholder =
+    let
+      placeholder = expr: "$$KUBIX_HELM_RAW$$(" + expr + ")$$END_KUBIX_HELM_RAW$$";
+      replace =
+        v:
+        if builtins.isAttrs v && v ? __kubixHelmValue then
+          placeholder "{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}"
+        else if builtins.isList v then
+          map replace v
+        else if builtins.isAttrs v then
+          builtins.mapAttrs (_: val: replace val) v
+        else
+          v;
+    in
+    replace;
+
   userManifests =
+    helmValueProcessor:
     let
       processedManifests = lib.filter (x: x.manifest != null) (
         lib.mapAttrsToList (k: v: {
@@ -62,7 +79,7 @@ let
 
       helmValueReplacedManifests = lib.map (x: {
         name = x.name;
-        manifest = replaceKubixHelmValuesWithDefault x.manifest;
+        manifest = helmValueProcessor x.manifest;
       }) processedManifests;
     in
     pkgs.linkFarm "manifest-dir" (
@@ -329,7 +346,15 @@ let
   allManifests = pkgs.symlinkJoin {
     name = "all-manifests";
     paths = [
-      userManifests
+      (userManifests replaceKubixHelmValuesWithDefault)
+      helmManifests
+    ];
+  };
+
+  allManifestsWithHelmPlaceholders = pkgs.symlinkJoin {
+    name = "all-manifests-with-helm-placeholders";
+    paths = [
+      (userManifests replaceKubixHelmValuesWithPlaceholder)
       helmManifests
     ];
   };
@@ -367,11 +392,13 @@ let
         EOF
 
         # convert JSON manifests to YAML and copy to templates
-        find "${allManifests}/" -name "*.json" | while read -r f; do
-          relFileName="''${f##${allManifests}/}"
+        find "${allManifestsWithHelmPlaceholders}/" -name "*.json" | while read -r f; do
+          relFileName="''${f##${allManifestsWithHelmPlaceholders}/}"
           relDirName="$(dirname "$relFileName")"
           mkdir -p "$chartDir/templates/$relDirName"
-          yq -P '.' "$f" > "$chartDir/templates/$relFileName.yaml"
+          # yq -P '.' "$f" > "$chartDir/templates/$relFileName.yaml"
+          yq -P '.' "$f" > "$tempDir/beforeSed.yaml"
+          sed -E 's/"\$\$KUBIX_HELM_RAW\$\((.*?)\)\$\$END_KUBIX_HELM_RAW\$\$"/\1/g' "$tempDir/beforeSed.yaml" > "$chartDir/templates/$relFileName.yaml"
         done
         ${
           if helmOptions.tarball then
