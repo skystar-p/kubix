@@ -294,7 +294,7 @@ in
     kubernetesVersion = lib.mkOption {
       type = lib.types.str;
       description = "kubernetes version to target. used for selecting appropriate predefined schemas.";
-      default = "1.34";
+      default = "1.35";
     };
 
     outputType = outputTypeOption;
