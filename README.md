@@ -496,13 +496,13 @@ Kubix provides special type named `kubix.lib.helmValue`, which can be rendered l
       namespace = "default";
     };
     data = {
-      # `kubix.lib.helmValue` receives `yaml path` and `default` value.
+      # use `kubix.lib.helmValue` to construct helm template string.
       "cool-data" = kubix.lib.helmValue [ "configMap" "coolDataValue" ] "defaultValue";
-      # Use `kubix.lib.helmTemplate` to combine multiple Helm values/literals into one string.
+      # use `kubix.lib.helmTemplate` to combine multiple Helm values/literals into one string.
       "cool-name" = kubix.lib.helmTemplate [
-        (kubix.lib.helmValue [ "configMap" "namePrefix" ] "cool")
+        (kubix.lib.helmValue [ "configMap" "namePrefix" ] "coolNamePrefix")
         "-"
-        (kubix.lib.helmValue [ "configMap" "nameSuffix" ] "data")
+        (kubix.lib.helmValue [ "configMap" "nameSuffix" ] "coolNameSuffix")
       ];
     };
   };
@@ -523,7 +523,8 @@ Templated result is:
 {
   "apiVersion": "v1",
   "data": {
-    "cool-data": "defaultValue" # <-- default value is provided
+    "cool-data": "defaultValue", # <-- default value is provided
+    "cool-name": "coolNamePrefix-coolNameSuffix" # <-- template strings can be composed
   },
   "kind": "ConfigMap",
   "metadata": {
@@ -542,7 +543,8 @@ helm template example-chart result --set configMap.coolDataValue='This is custom
 {
   "apiVersion": "v1",
   "data": {
-    "cool-data": "This is custom value!" # <-- can be customized!
+    "cool-data": "This is custom value!", # <-- can be customized!
+    "cool-name": "coolNamePrefix-coolNameSuffix"
   },
   "kind": "ConfigMap",
   "metadata": {
@@ -552,4 +554,5 @@ helm template example-chart result --set configMap.coolDataValue='This is custom
 }
 ```
 
-If you did not specified ouptut type as `helm`, default values provided are used to render manifests. Also, all validation processes are done with default values, so you don't have to worry about your mistake when using `kubix.lib.helmValue`. Just be careful when you provide your custom `values.yaml` when templating, because Helm cannot validate your input.
+If you did not specified ouptut type as `helm`, default values provided are used to render manifests.
+Also, all validation processes are done with default values, so you don't have to worry about your mistake when using `kubix.lib.helmValue`. Just be careful when you provide your custom `values.yaml` when templating, because Helm cannot validate your input.
