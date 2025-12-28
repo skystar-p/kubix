@@ -86,7 +86,8 @@ let
             "{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}"
           )
         else if builtins.isAttrs v && v ? __kubixHelmTemplate then
-          renderHelmTemplate v.__kubixHelmTemplate.parts (helmValue:
+          renderHelmTemplate v.__kubixHelmTemplate.parts (
+            helmValue:
             mkPlaceholder "string" ("{{ .Values." + (lib.concatStringsSep "." helmValue.path) + " }}")
           )
         else if builtins.isList v then
@@ -427,12 +428,15 @@ let
     pkgs.stdenv.mkDerivation {
       name = "helm-output-${helmOptions.name}-${helmOptions.version}";
 
-      nativeBuildInputs = [
-        pkgs.yq-go
-      ]
-      ++ lib.optionals helmOptions.tarball [
-        pkgs.kubernetes-helm
-      ];
+      nativeBuildInputs =
+        with pkgs;
+        [
+          yq-go
+          perl
+        ]
+        ++ lib.optionals helmOptions.tarball [
+          pkgs.kubernetes-helm
+        ];
 
       phases = [ "installPhase" ];
 
@@ -455,8 +459,8 @@ let
           yq -P '.' "$f" > "$tempDir/beforeSed.yaml"
           # replace placeholders with raw helm template syntax
           cat "$tempDir/beforeSed.yaml" | \
-            sed -E 's/"\$\$KUBIX_HELM_RAW\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW\$\$"/\1/g' | \
-            sed -E 's/\$\$KUBIX_HELM_RAW_STRING\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW_STRING\$\$/\1/g' \
+            perl -pe 's/"\$\$KUBIX_HELM_RAW\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW\$\$"/\1/g' | \
+            perl -pe 's/\$\$KUBIX_HELM_RAW_STRING\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW_STRING\$\$/\1/g' \
             > "$chartDir/templates/$relFileName.yaml"
         done
         # write values.yaml
