@@ -6,6 +6,7 @@
 let
   buildManifests = self.lib.buildManifests pkgs.system;
   helmValue = self.lib.helmValue;
+  helmTemplate = self.lib.helmTemplate;
 in
 {
   simpleConfigMap = buildManifests {
@@ -129,6 +130,17 @@ in
           "example.property.1" = "value1";
           "example.property.2" = "value2";
           "example.property.3" = helmValue [ "test" "property" ] "defaultValue";
+          "example.property.4" = helmTemplate [
+            (helmValue [
+              "test"
+              "property"
+            ] "defaultValue")
+            "-"
+            (helmValue [
+              "another"
+              "property"
+            ] "anotherDefault")
+          ];
         };
       };
     };

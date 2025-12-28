@@ -36,12 +36,32 @@ let
         manifest
     ) manifest postProcessors;
 
+  renderHelmTemplate =
+    parts: renderHelmValue:
+    lib.concatStrings (
+      map (
+        part:
+        if builtins.isString part then
+          part
+        else if builtins.isBool part || builtins.isInt part || builtins.isFloat part then
+          builtins.toString part
+        else if builtins.isAttrs part && part ? __kubixHelmValue then
+          renderHelmValue part.__kubixHelmValue
+        else if builtins.isAttrs part && part ? __kubixHelmTemplate then
+          renderHelmTemplate part.__kubixHelmTemplate.parts renderHelmValue
+        else
+          throw "kubix: unsupported value found in helm template parts"
+      ) parts
+    );
+
   replaceKubixHelmValuesWithDefault =
     let
       replace =
         v:
         if builtins.isAttrs v && v ? __kubixHelmValue then
           v.__kubixHelmValue.default
+        else if builtins.isAttrs v && v ? __kubixHelmTemplate then
+          renderHelmTemplate v.__kubixHelmTemplate.parts (helmValue: builtins.toString helmValue.default)
         else if builtins.isList v then
           map replace v
         else if builtins.isAttrs v then
@@ -64,6 +84,10 @@ let
         if builtins.isAttrs v && v ? __kubixHelmValue then
           mkPlaceholder (builtins.typeOf v.__kubixHelmValue.default) (
             "{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}"
+          )
+        else if builtins.isAttrs v && v ? __kubixHelmTemplate then
+          renderHelmTemplate v.__kubixHelmTemplate.parts (helmValue:
+            mkPlaceholder "string" ("{{ .Values." + (lib.concatStringsSep "." helmValue.path) + " }}")
           )
         else if builtins.isList v then
           map replace v
@@ -378,6 +402,8 @@ let
         acc: v:
         if builtins.isAttrs v && v ? __kubixHelmValue then
           updatePath v.__kubixHelmValue.path v.__kubixHelmValue.default acc
+        else if builtins.isAttrs v && v ? __kubixHelmTemplate then
+          lib.foldl' update acc v.__kubixHelmTemplate.parts
         else if builtins.isList v then
           lib.foldl' update acc v
         else if builtins.isAttrs v then
@@ -430,7 +456,7 @@ let
           # replace placeholders with raw helm template syntax
           cat "$tempDir/beforeSed.yaml" | \
             sed -E 's/"\$\$KUBIX_HELM_RAW\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW\$\$"/\1/g' | \
-            sed -E 's/"\$\$KUBIX_HELM_RAW_STRING\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW_STRING\$\$"/"\1"/g' \
+            sed -E 's/\$\$KUBIX_HELM_RAW_STRING\$\$\((.*?)\)\$\$END_KUBIX_HELM_RAW_STRING\$\$/\1/g' \
             > "$chartDir/templates/$relFileName.yaml"
         done
         # write values.yaml

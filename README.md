@@ -483,7 +483,7 @@ helm template "my-helm-chart" ./result
 
 ### Add Helm template variables
 
-Kubix provides special type named `kubix.lib.helmValue`, which can be rendered later as Helm template string. You can build basic Helm charts which accepts custom `values.yaml`.
+Kubix provides special type named `kubix.lib.helmValue`, which can be rendered later as Helm template string. You can build basic Helm charts which accepts custom `values.yaml`. To compose strings that combine multiple Helm values or literals, wrap the pieces in `kubix.lib.helmTemplate [ ... ]`.
 
 ```nix
 # manifest.nix
@@ -498,6 +498,12 @@ Kubix provides special type named `kubix.lib.helmValue`, which can be rendered l
     data = {
       # `kubix.lib.helmValue` receives `yaml path` and `default` value.
       "cool-data" = kubix.lib.helmValue [ "configMap" "coolDataValue" ] "defaultValue";
+      # Use `kubix.lib.helmTemplate` to combine multiple Helm values/literals into one string.
+      "cool-name" = kubix.lib.helmTemplate [
+        (kubix.lib.helmValue [ "configMap" "namePrefix" ] "cool")
+        "-"
+        (kubix.lib.helmValue [ "configMap" "nameSuffix" ] "data")
+      ];
     };
   };
 }

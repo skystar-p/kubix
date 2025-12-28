@@ -50,6 +50,7 @@
         eval.config.kubix.result;
 
       lib.helmValue = path: default: { __kubixHelmValue = { inherit path default; }; };
+      lib.helmTemplate = parts: { __kubixHelmTemplate = { inherit parts; }; };
 
       checks = forAllSystems (pkgs: (import ./nix/tests { inherit self pkgs; }));
     };
