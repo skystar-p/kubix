@@ -522,7 +522,7 @@ let
           ${builtins.toJSON collectedHelmValues}
         EOF
         # write values.schema.json
-        cat > "$chartDir/values.schema.json" <<EOF
+        cat > "$chartDir/values.schema.json" <<'EOF'
         ${builtins.toJSON helmValuesSchema}
         EOF
         ${
