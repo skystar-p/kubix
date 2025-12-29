@@ -415,6 +415,60 @@ let
     in
     valuesAttr;
 
+  helmValuesSchema =
+    let
+      mkSchema =
+        v:
+        let
+          t = builtins.typeOf v;
+          mkArraySchema = items: {
+            type = "array";
+            items = if items == [ ] then { } else mkSchema (builtins.head items);
+            default = items;
+          };
+        in
+        if t == "set" then
+          {
+            type = "object";
+            properties = builtins.mapAttrs (_: mkSchema) v;
+            additionalProperties = true;
+            default = v;
+          }
+        else if t == "list" then
+          mkArraySchema v
+        else if t == "bool" then
+          {
+            type = "boolean";
+            default = v;
+          }
+        else if t == "int" then
+          {
+            type = "integer";
+            default = v;
+          }
+        else if t == "float" then
+          {
+            type = "number";
+            default = v;
+          }
+        else if t == "string" then
+          {
+            type = "string";
+            default = v;
+          }
+        else if t == "path" then
+          {
+            type = "string";
+            default = builtins.toString v;
+          }
+        else
+          { };
+    in
+    {
+      "$schema" = "https://json-schema.org/draft-07/schema";
+    }
+    // mkSchema collectedHelmValues;
+
   helmOutput =
     let
       helmOptions = config.kubix.outputType.helmOptions;
@@ -466,6 +520,10 @@ let
         # write values.yaml
         yq -P '.' > "$chartDir/values.yaml" <<EOF
           ${builtins.toJSON collectedHelmValues}
+        EOF
+        # write values.schema.json
+        cat > "$chartDir/values.schema.json" <<EOF
+        ${builtins.toJSON helmValuesSchema}
         EOF
         ${
           if helmOptions.tarball then
