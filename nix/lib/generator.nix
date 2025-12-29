@@ -521,10 +521,17 @@ let
         yq -P '.' > "$chartDir/values.yaml" <<EOF
           ${builtins.toJSON collectedHelmValues}
         EOF
-        # write values.schema.json
-        cat > "$chartDir/values.schema.json" <<'EOF'
-        ${builtins.toJSON helmValuesSchema}
-        EOF
+        ${
+          if helmOptions.createValuesSchema then
+            ''
+              # write values.schema.json
+              cat > "$chartDir/values.schema.json" <<'EOF'
+              ${builtins.toJSON helmValuesSchema}
+              EOF
+            ''
+          else
+            ""
+        }
         ${
           if helmOptions.tarball then
             ''

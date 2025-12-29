@@ -235,6 +235,12 @@ let
                 description = "whether to package the helm chart as a tarball";
                 default = false;
               };
+
+              createValuesSchema = lib.mkOption {
+                type = lib.types.bool;
+                description = "whether to create a values.schema.json file based on the provided values";
+                default = true;
+              };
             };
           };
 
