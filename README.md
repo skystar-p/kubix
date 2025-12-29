@@ -467,6 +467,7 @@ You can make your final output into Helm chart. This can be useful if you need H
       helmOptions = {
         name = "test-helm";
         tarball = true; # default is false
+        createValuesSchema = true; # default is true
       };
     };
   };
@@ -555,4 +556,27 @@ helm template example-chart result --set configMap.coolDataValue='This is custom
 ```
 
 If you did not specified ouptut type as `helm`, default values provided are used to render manifests.
-Also, all validation processes are done with default values, so you don't have to worry about your mistake when using `kubix.lib.helmValue`. Just be careful when you provide your custom `values.yaml` when templating, because Helm cannot validate your input.
+Also, all validation processes are done with default values, so you don't have to worry about your mistake when using `kubix.lib.helmValue`.
+
+### Create JSON schema for `values.yaml`
+
+If you specify `createValuesSchema` option to `true`(which is the default), Kubix creates `values.schema.json` file in your chart, so that you can get validated your `values.yaml` file when you render your chart. This validation is done by Helm, so your custom `values.yaml` is safe from mistake.
+
+For example, if you provide this invalid `values.yaml` file,
+```
+# values.yaml
+
+configMap:
+  coolDataValue: 100 # this is invalid!
+  
+  namePrefix: "coolNamePrefix"
+  nameSuffix: "coolNameSuffix"
+```
+
+Then `helm template` command will fail with validation error:
+```sh
+❯ helm template example-chart result -f values.yaml
+Error: values don't meet the specifications of the schema(s) in the following chart(s):
+example-chart:
+- at '/configMap/coolDataValue': got number, want string
+```
