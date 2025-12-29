@@ -27,6 +27,7 @@ If you're tired of debugging YAML in production, give Kubix a try. It makes writ
 - [Use Post-processors to tailor your output](#use-post-processors-to-tailor-your-output)
 - [Build output as Helm chart](#build-output-as-helm-chart)
   - [Add Helm template variables](#add-helm-template-variables)
+  - [Create JSON schema for `values.yaml`](#create-json-schema-for-valuesyaml)
 
 ## Basic Usage
 
@@ -560,10 +561,10 @@ Also, all validation processes are done with default values, so you don't have t
 
 ### Create JSON schema for `values.yaml`
 
-If you specify `createValuesSchema` option to `true`(which is the default), Kubix creates `values.schema.json` file in your chart, so that you can get validated your `values.yaml` file when you render your chart. This validation is done by Helm, so your custom `values.yaml` is safe from mistake.
+If you specify `createValuesSchema` option to `true` (which is the default), Kubix creates `values.schema.json` file in your chart, so that you can get validated your `values.yaml` file when you render your chart. This validation is done by Helm, so your custom `values.yaml` is safe from mistake.
 
 For example, if you provide this invalid `values.yaml` file,
-```
+```yaml
 # values.yaml
 
 configMap:
@@ -576,6 +577,7 @@ configMap:
 Then `helm template` command will fail with validation error:
 ```sh
 ❯ helm template example-chart result -f values.yaml
+
 Error: values don't meet the specifications of the schema(s) in the following chart(s):
 example-chart:
 - at '/configMap/coolDataValue': got number, want string
