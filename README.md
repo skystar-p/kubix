@@ -12,8 +12,8 @@ Kubix solves this by:
 - **Using Nix for configuration**: Write manifests in a real programming language with proper types, functions, and abstractions. No more YAML indentation disasters and `nindent` workaround.
 - **Validating Helm outputs**: Render Helm charts and validate the result. Finally know if your `values.yaml` produces valid Kubernetes resources.
 - **Supporting CRDs**: Automatically extract schemas from `CustomResourceDefinition`s. Your cert-manager `Certificate`s and Istio `VirtualService`s get validated too.
-- **Post-Process your final result**: You have full control over your manifests, powered by Nix function. No more custom forked Helm charts for your real needs.
-- **Build Helm chart with validations**: You can even make basic Helm chart with custom values, and the chart rendered with provided default values are also validated.
+- **Post-Processing your final result**: You have full control over your manifests, powered by Nix function. No more custom forked Helm charts for your real needs.
+- **Building Helm chart with validations**: You can even make basic Helm chart with custom values, and the chart rendered with provided default values are also validated.
 
 If you're tired of debugging YAML in production, give Kubix a try. It makes writing manifest a more pleasant experience.
 
