@@ -19,6 +19,7 @@ If you're tired of debugging YAML in production, give Kubix a try. It makes writ
 
 
 - [Basic Usage](#basic-usage)
+- [Use as NixOS Module](#use-as-nixos-module)
 - [Validating your manifests](#validating-your-manifests)
 - [Use your custom JSON Schema](#use-your-custom-json-schema)
 - [Use CustomResourceDefinition instead](#use-customresourcedefinition-instead)
@@ -85,6 +86,82 @@ ls -al ./result
 cd ./result
 kubectl apply -f .
 ```
+
+## Use as NixOS module
+
+You can compose your manifests using NixOS modules.
+
+```nix
+# module1.nix
+{
+  imports = [
+    ./module2.nix
+  ];
+
+  kubix.manifests.example-configmap = {
+    apiVersion = "v1";
+    kind = "ConfigMap";
+    metadata = {
+      name = "example-configmap";
+      namespace = "default";
+    };
+    data = {
+      "cool-data" = "foo";
+    };
+  };
+}
+```
+
+```nix
+# module2.nix
+{
+  kubix.manifests.example-configmap = {
+    data = {
+      # this field will be merged with the manifest defined in `module1.nix`!
+      "awesome-data" = "bar";
+    };
+  };
+}
+```
+
+```nix
+# flake.nix
+{
+  # ...
+
+  outputs =
+    { flake-utils, kubix, ... }:
+    flake-utils.lib.eachDefaultSystem (system: {
+      # use `kubix.lib.evalModules` to build your own manifest modules
+      packages.default = kubix.lib.evalModules {
+        inherit system;
+        modules = [ ./module1.nix ];
+      };
+    });
+```
+
+```sh
+nix build
+```
+
+Result will look like this:
+
+```json
+{
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "example-configmap",
+    "namespace": "default"
+  },
+  "data": {
+    "cool-data": "foo",
+    "awesome-data": "bar" # <-- merged by `evalModules`!
+  }
+}
+```
+
+The NixOS module system provides flexibility for composing Kubernetes manifests with Kubix.
 
 ## Validating your manifests
 
