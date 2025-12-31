@@ -49,6 +49,28 @@
         in
         eval.config.kubix.result;
 
+      lib.evalModules =
+        { system, modules }:
+        let
+          pkgs = import nixpkgs { inherit system; };
+          eval = pkgs.lib.evalModules {
+            specialArgs = {
+              inherit pkgs;
+              kubix = self;
+            };
+            modules = [
+              {
+                kubix = {
+                  enable = true;
+                };
+              }
+              self.nixosModules.kubix
+            ]
+            ++ modules;
+          };
+        in
+        eval.config.kubix.result;
+
       lib.helmValue = path: default: { __kubixHelmValue = { inherit path default; }; };
       lib.helmTemplate = parts: { __kubixHelmTemplate = { inherit parts; }; };
 
