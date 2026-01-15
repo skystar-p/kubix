@@ -73,6 +73,42 @@
 
       lib.helmValue = path: default: { __kubixHelmValue = { inherit path default; }; };
       lib.helmTemplate = parts: { __kubixHelmTemplate = { inherit parts; }; };
+      lib.helmType =
+        let
+          lib = nixpkgs.lib;
+        in
+        lib.mkOptionType {
+          name = "kubixHelm";
+          check =
+            let
+              isHelmValue =
+                value:
+                let
+                  helmValue = value.__kubixHelmValue;
+                in
+                builtins.isAttrs value
+                && builtins.hasAttr "__kubixHelmValue" value
+                && builtins.isAttrs helmValue
+                && builtins.hasAttr "path" helmValue
+                && builtins.isList helmValue.path
+                && builtins.all builtins.isString helmValue.path
+                && builtins.hasAttr "default" helmValue;
+              isHelmTemplate =
+                value:
+                let
+                  helmTemplate = value.__kubixHelmTemplate;
+                in
+                builtins.isAttrs value
+                && builtins.hasAttr "__kubixHelmTemplate" value
+                && builtins.isAttrs helmTemplate
+                && builtins.hasAttr "parts" helmTemplate
+                && builtins.isList helmTemplate.parts
+                && builtins.all (part: (builtins.isString part) || isHelmValue part) helmTemplate.parts;
+            in
+            value: isHelmValue value || isHelmTemplate value;
+          merge = lib.mergeEqualOption;
+        };
+      lib.helmTypeOr = type: nixpkgs.lib.types.either self.lib.helmType type;
 
       checks = forAllSystems (pkgs: (import ./nix/tests { inherit self pkgs; }));
     };
