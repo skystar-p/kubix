@@ -200,9 +200,15 @@ let
   crdDir = pkgs.runCommand "crd-dir" { nativeBuildInputs = [ pkgs.yq-go ]; } (
     lib.concatStringsSep "\n" (
       [ "mkdir -p $out" ]
-      ++ lib.imap0 (i: v: ''
-        yq -o=json '.' "${fetch v}" > "$out/crd-${toString i}.json"
-      '') config.kubix.crds
+      ++ lib.imap0 (
+        i: v:
+        let
+          crdPath = if v.path != null then v.path else fetch v;
+        in
+        ''
+          yq -o=json '.' "${crdPath}" > "$out/crd-${toString i}.json"
+        ''
+      ) config.kubix.crds
       ++ lib.map (result: ''
         cp "${result.crdsPath}" "$out"/helm-crd-${result.name}
       '') helmTemplateResults

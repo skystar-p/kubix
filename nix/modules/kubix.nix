@@ -70,12 +70,19 @@ let
       lib.types.submodule {
         options = {
           url = lib.mkOption {
-            type = lib.types.str;
+            type = lib.types.nullOr lib.types.str;
             description = "url to the crd file";
+            default = null;
           };
           hash = lib.mkOption {
-            type = lib.types.str;
+            type = lib.types.nullOr lib.types.str;
             description = "hash of the crd file";
+            default = null;
+          };
+          path = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            description = "optional local path to the crd file. if set, url and hash are ignored.";
+            default = null;
           };
         };
       }
