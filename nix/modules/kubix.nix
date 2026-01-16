@@ -54,7 +54,7 @@ let
           };
 
           path = lib.mkOption {
-            type = lib.types.nullOr lib.types.str;
+            type = lib.types.nullOr lib.types.path;
             description = "optional local path to the schema file. if set, url and hash are ignored.";
             default = null;
           };
@@ -80,7 +80,7 @@ let
             default = null;
           };
           path = lib.mkOption {
-            type = lib.types.nullOr lib.types.str;
+            type = lib.types.nullOr lib.types.path;
             description = "optional local path to the crd file. if set, url and hash are ignored.";
             default = null;
           };
