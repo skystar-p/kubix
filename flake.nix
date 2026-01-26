@@ -107,7 +107,9 @@
             && builtins.isAttrs helmTemplate
             && builtins.hasAttr "parts" helmTemplate
             && builtins.isList helmTemplate.parts
-            && builtins.all (part: (builtins.isString part) || isHelmValue part) helmTemplate.parts;
+            && builtins.all (
+              part: (builtins.isString part) || isHelmValue part || isHelmTemplate part
+            ) helmTemplate.parts;
         in
         value: isHelmValue value || isHelmTemplate value;
 
