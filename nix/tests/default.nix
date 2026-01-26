@@ -141,6 +141,19 @@ in
               "property"
             ] "anotherDefault")
           ];
+          # nested helm template
+          "example.property.5" = helmTemplate [
+            (helmTemplate [
+              (helmValue [ "test" "property" ] "defaultValue")
+              "-"
+              (helmValue [ "test" "property" ] "anotherDefault")
+            ])
+            "-"
+            (helmValue [
+              "another"
+              "property"
+            ] "anotherDefault")
+          ];
         };
       };
     };
