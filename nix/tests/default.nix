@@ -166,4 +166,36 @@ in
       };
     };
   };
+
+  parseCrdOfMultipleDocuments = buildManifests {
+    manifests = {
+      example-configmap = {
+        apiVersion = "v1";
+        kind = "ConfigMap";
+        metadata = {
+          name = "example-configmap";
+          namespace = "default";
+        };
+        data = {
+          "example.property.1" = "value1";
+        };
+      };
+    };
+
+    crds = [
+      {
+        path = pkgs.writeText "crd.yaml" ''
+          apiVersion: apiextensions.k8s.io/v1
+          kind: CustomResourceDefinition
+          metadata:
+            name: a
+          ---
+          apiVersion: apiextensions.k8s.io/v1
+          kind: CustomResourceDefinition
+          metadata:
+            name: b
+        '';
+      }
+    ];
+  };
 }
