@@ -206,7 +206,7 @@ let
           crdPath = if v.path != null then v.path else fetch v;
         in
         ''
-          yq -o=json '.' "${crdPath}" > "$out/crd-${toString i}.json"
+          yq --output-format=json --split-exp='"\(env(out))/crd-${toString i}-\(.metadata.name).json"' "${crdPath}"
         ''
       ) config.kubix.crds
       ++ lib.map (result: ''

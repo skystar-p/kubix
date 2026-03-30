@@ -112,7 +112,7 @@ fn do_validation(
                 "{:?}: no matching schema or CustomResourceDefinition found for {}, {}",
                 name,
                 if group.is_empty() {
-                    group
+                    version
                 } else {
                     format!("{}/{}", group, version)
                 },
