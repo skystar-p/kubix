@@ -4,8 +4,9 @@
   ...
 }:
 let
-  buildManifests = self.lib.buildManifests pkgs.system;
+  buildManifests = self.lib.buildManifests pkgs.stdenv.hostPlatform.system;
   helmValue = self.lib.helmValue;
+  helmValueToJson = self.lib.helmValueToJson;
   helmTemplate = self.lib.helmTemplate;
 in
 {
@@ -125,6 +126,10 @@ in
         metadata = {
           name = "example-configmap";
           namespace = "default";
+          annotations = helmValueToJson [ "test" "property" "annotations" ] {
+            foo = "bar";
+            bar = "baz";
+          };
         };
         data = {
           "example.property.1" = "value1";

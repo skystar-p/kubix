@@ -72,6 +72,7 @@
         eval.config.kubix.result;
 
       lib.helmValue = path: default: { __kubixHelmValue = { inherit path default; }; };
+      lib.helmValueToJson = path: default: { __kubixHelmValueToJson = { inherit path default; }; };
       lib.helmTemplate = parts: { __kubixHelmTemplate = { inherit parts; }; };
       lib.helmType =
         let
@@ -97,6 +98,18 @@
             && builtins.isList helmValue.path
             && builtins.all builtins.isString helmValue.path
             && builtins.hasAttr "default" helmValue;
+          isHelmValueToJson =
+            value:
+            let
+              helmValue = value.__kubixHelmValueToJson;
+            in
+            builtins.isAttrs value
+            && builtins.hasAttr "__kubixHelmValueToJson" value
+            && builtins.isAttrs helmValue
+            && builtins.hasAttr "path" helmValue
+            && builtins.isList helmValue.path
+            && builtins.all builtins.isString helmValue.path
+            && builtins.hasAttr "default" helmValue;
           isHelmTemplate =
             value:
             let
@@ -108,10 +121,10 @@
             && builtins.hasAttr "parts" helmTemplate
             && builtins.isList helmTemplate.parts
             && builtins.all (
-              part: (builtins.isString part) || isHelmValue part || isHelmTemplate part
+              part: (builtins.isString part) || isHelmValue part || isHelmValueToJson part || isHelmTemplate part
             ) helmTemplate.parts;
         in
-        value: isHelmValue value || isHelmTemplate value;
+        value: isHelmValue value || isHelmValueToJson value || isHelmTemplate value;
 
       checks = forAllSystems (pkgs: (import ./nix/tests { inherit self pkgs; }));
     };

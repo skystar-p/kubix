@@ -562,7 +562,7 @@ helm template "my-helm-chart" ./result
 
 ### Add Helm template variables
 
-Kubix provides special type named `kubix.lib.helmValue`, which can be rendered later as Helm template string. You can build basic Helm charts which accepts custom `values.yaml`. To compose strings that combine multiple Helm values or literals, wrap the pieces in `kubix.lib.helmTemplate [ ... ]`.
+Kubix provides special type named `kubix.lib.helmValue`, which can be rendered later as Helm template string. You can build basic Helm charts which accepts custom `values.yaml`. To compose strings that combine multiple Helm values or literals, wrap the pieces in `kubix.lib.helmTemplate [ ... ]`. If you need JSON-encoded output in a string field (e.g. annotations or ConfigMap data), use `kubix.lib.helmValueToJson`, which renders `{{ toJson .Values.<path> }}` and uses `builtins.toJSON` for defaults.
 
 ```nix
 # manifest.nix
@@ -573,6 +573,11 @@ Kubix provides special type named `kubix.lib.helmValue`, which can be rendered l
     metadata = {
       name = "example-configmap";
       namespace = "default";
+      # use `kubix.lib.helmValueToJson` to embed JSON-encoded values.
+      annotations = kubix.lib.helmValueToJson [ "configMap" "annotations" ] {
+        foo = "bar";
+        bar = "baz";
+      };
     };
     data = {
       # use `kubix.lib.helmValue` to construct helm template string.
@@ -608,7 +613,11 @@ Templated result is:
   "kind": "ConfigMap",
   "metadata": {
     "name": "example-configmap",
-    "namespace": "default"
+    "namespace": "default",
+    "annotations": { # <-- complex value can be used as JSON
+      "foo": "bar",
+      "bar": "baz"
+    }
   }
 }
 ```
@@ -628,7 +637,11 @@ helm template example-chart result --set configMap.coolDataValue='This is custom
   "kind": "ConfigMap",
   "metadata": {
     "name": "example-configmap",
-    "namespace": "default"
+    "namespace": "default",
+    "annotations": {
+      "foo": "bar",
+      "bar": "baz"
+    }
   }
 }
 ```
