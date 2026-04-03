@@ -7,6 +7,7 @@ let
   buildManifests = self.lib.buildManifests pkgs.stdenv.hostPlatform.system;
   helmValue = self.lib.helmValue;
   helmValueToJson = self.lib.helmValueToJson;
+  helmValueQuoted = self.lib.helmValueQuoted;
   helmTemplate = self.lib.helmTemplate;
   fixturesDir = ./fixtures;
   mkManifestCheck =
@@ -200,6 +201,7 @@ rec {
           "example.property.1" = "value1";
           "example.property.2" = "value2";
           "example.property.3" = helmValue [ "test" "property" ] "defaultValue";
+          "example.property.6" = helmValueQuoted [ "test" "flag" ] true;
           "example.property.4" = helmTemplate [
             (helmValue [
               "test"
@@ -289,6 +291,7 @@ rec {
     values = {
       test = {
         property = "customValue";
+        flag = true;
         annotations = {
           foo = "from-helm";
           bar = "baz";

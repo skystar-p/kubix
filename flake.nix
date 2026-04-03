@@ -73,6 +73,7 @@
 
       lib.helmValue = path: default: { __kubixHelmValue = { inherit path default; }; };
       lib.helmValueToJson = path: default: { __kubixHelmValueToJson = { inherit path default; }; };
+      lib.helmValueQuoted = path: default: { __kubixHelmValueQuoted = { inherit path default; }; };
       lib.helmTemplate = parts: { __kubixHelmTemplate = { inherit parts; }; };
       lib.helmType =
         let
@@ -110,6 +111,18 @@
             && builtins.isList helmValue.path
             && builtins.all builtins.isString helmValue.path
             && builtins.hasAttr "default" helmValue;
+          isHelmValueQuoted =
+            value:
+            let
+              helmValue = value.__kubixHelmValueQuoted;
+            in
+            builtins.isAttrs value
+            && builtins.hasAttr "__kubixHelmValueQuoted" value
+            && builtins.isAttrs helmValue
+            && builtins.hasAttr "path" helmValue
+            && builtins.isList helmValue.path
+            && builtins.all builtins.isString helmValue.path
+            && builtins.hasAttr "default" helmValue;
           isHelmTemplate =
             value:
             let
@@ -121,10 +134,15 @@
             && builtins.hasAttr "parts" helmTemplate
             && builtins.isList helmTemplate.parts
             && builtins.all (
-              part: (builtins.isString part) || isHelmValue part || isHelmValueToJson part || isHelmTemplate part
+              part:
+              (builtins.isString part)
+              || isHelmValue part
+              || isHelmValueToJson part
+              || isHelmValueQuoted part
+              || isHelmTemplate part
             ) helmTemplate.parts;
         in
-        value: isHelmValue value || isHelmValueToJson value || isHelmTemplate value;
+        value: isHelmValue value || isHelmValueToJson value || isHelmValueQuoted value || isHelmTemplate value;
 
       checks = forAllSystems (pkgs: (import ./nix/tests { inherit self pkgs; }));
     };
