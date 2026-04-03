@@ -8,8 +8,73 @@ let
   helmValue = self.lib.helmValue;
   helmValueToJson = self.lib.helmValueToJson;
   helmTemplate = self.lib.helmTemplate;
+  fixturesDir = ./fixtures;
+  mkManifestCheck =
+    {
+      name,
+      result,
+      manifestName,
+      fixture,
+    }:
+    pkgs.runCommand "check-${name}"
+      {
+        nativeBuildInputs = [
+          pkgs.diffutils
+          pkgs.jq
+        ];
+      }
+      ''
+        set -euo pipefail
+        test -f ${result}/${manifestName}.json
+        jq -S . ${fixture} > "$TMPDIR/expected.json"
+        jq -S . ${result}/${manifestName}.json > "$TMPDIR/actual.json"
+        diff -u "$TMPDIR/expected.json" "$TMPDIR/actual.json"
+        touch $out
+      '';
+  mkHelmTemplateCheck =
+    {
+      name,
+      result,
+      values,
+      expectedFixtures,
+    }:
+    let
+      valuesFile = pkgs.writeText "values.json" (builtins.toJSON values);
+    in
+    pkgs.runCommand "check-${name}"
+      {
+        nativeBuildInputs = [
+          pkgs.diffutils
+          pkgs.jq
+          pkgs.kubernetes-helm
+          pkgs.yq-go
+        ];
+      }
+      ''
+        set -euo pipefail
+        helm template example-chart ${result} -f ${valuesFile} \
+          | yq --output-format=json --split-exp='"\(env(TMPDIR))/\(.apiVersion)-\(.kind)-\(.metadata.namespace)-\(.metadata.name).json"'
+        shopt -s nullglob
+        for actual in "$TMPDIR"/*.json; do
+          base="$(basename "$actual")"
+          expected="${expectedFixtures}/$base"
+          if [ ! -f "$expected" ]; then
+            echo "missing expected fixture: $expected" >&2
+            exit 1
+          fi
+          diff -u <(jq -S . "$expected") <(jq -S . "$actual")
+        done
+        for expected in ${expectedFixtures}/*.json; do
+          base="$(basename "$expected")"
+          if [ ! -f "$TMPDIR/$base" ]; then
+            echo "missing actual render: $base" >&2
+            exit 1
+          fi
+        done
+        touch $out
+      '';
 in
-{
+rec {
   simpleConfigMap = buildManifests {
     manifests = {
       example-configmap = {
@@ -126,7 +191,7 @@ in
         metadata = {
           name = "example-configmap";
           namespace = "default";
-          annotations = helmValueToJson [ "test" "property" "annotations" ] {
+          annotations = helmValueToJson [ "test" "annotations" ] {
             foo = "bar";
             bar = "baz";
           };
@@ -202,5 +267,35 @@ in
         '';
       }
     ];
+  };
+
+  simpleConfigMapCheck = mkManifestCheck {
+    name = "simple-configmap";
+    result = simpleConfigMap;
+    manifestName = "example-configmap";
+    fixture = "${fixturesDir}/simple-configmap.json";
+  };
+
+  certManagerCertificateCheck = mkManifestCheck {
+    name = "cert-manager-certificate";
+    result = certManagerCertificate;
+    manifestName = "example-certificate";
+    fixture = "${fixturesDir}/cert-manager-certificate.json";
+  };
+
+  simpleConfigMapWithHelmValueCheck = mkHelmTemplateCheck {
+    name = "simple-configmap-helm";
+    result = simpleConfigMapWithHelmValue;
+    values = {
+      test = {
+        property = "customValue";
+        annotations = {
+          foo = "from-helm";
+          bar = "baz";
+        };
+      };
+      another.property = "otherValue";
+    };
+    expectedFixtures = "${fixturesDir}/simple-configmap-helm/";
   };
 }

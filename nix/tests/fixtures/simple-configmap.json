@@ -1,0 +1,12 @@
+{
+  "apiVersion": "v1",
+  "data": {
+    "example.property.1": "value1",
+    "example.property.2": "value2"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "example-configmap",
+    "namespace": "default"
+  }
+}
