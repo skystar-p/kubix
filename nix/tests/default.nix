@@ -55,7 +55,7 @@ let
         set -euo pipefail
         helm template example-chart ${result} -f ${valuesFile} \
           | yq --output-format=json --split-exp='"\(env(TMPDIR))/\(.apiVersion)-\(.kind)-\(.metadata.namespace)-\(.metadata.name).json"'
-        shopt -s nullglob
+        shopt -s failglob
         for actual in "$TMPDIR"/*.json; do
           base="$(basename "$actual")"
           expected="${expectedFixtures}/$base"
