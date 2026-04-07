@@ -562,7 +562,11 @@ helm template "my-helm-chart" ./result
 
 ### Add Helm template variables
 
-Kubix provides special type named `kubix.lib.helmValue`, which can be rendered later as Helm template string. You can build basic Helm charts which accepts custom `values.yaml`. To compose strings that combine multiple Helm values or literals, wrap the pieces in `kubix.lib.helmTemplate [ ... ]`.
+Kubix provides special type named `kubix.lib.helmValue`, which can be rendered later as Helm template string.
+You can build basic Helm charts which accepts custom `values.yaml`.
+To compose strings that combine multiple Helm values or literals, wrap the pieces in `kubix.lib.helmTemplate [ ... ]`.
+If you need JSON-encoded output in a string field (e.g. annotations or ConfigMap data), use `kubix.lib.helmValueToJson`, which renders `{{ toJson .Values.<path> }}` and uses `builtins.toJSON` for defaults.
+If you need a quoted string (useful when a boolean should become a string in ConfigMap data), use `kubix.lib.helmValueQuoted`, which renders `{{ quote .Values.<path> }}`.
 
 ```nix
 # manifest.nix
@@ -573,10 +577,17 @@ Kubix provides special type named `kubix.lib.helmValue`, which can be rendered l
     metadata = {
       name = "example-configmap";
       namespace = "default";
+      # use `kubix.lib.helmValueToJson` to embed JSON-encoded values.
+      annotations = kubix.lib.helmValueToJson [ "configMap" "annotations" ] {
+        foo = "bar";
+        bar = "baz";
+      };
     };
     data = {
       # use `kubix.lib.helmValue` to construct helm template string.
       "cool-data" = kubix.lib.helmValue [ "configMap" "coolDataValue" ] "defaultValue";
+      # use `kubix.lib.helmValueQuoted` to force quoted string output (e.g. boolean to string).
+      "cool-flag" = kubix.lib.helmValueQuoted [ "configMap" "coolFlag" ] true;
       # use `kubix.lib.helmTemplate` to combine multiple Helm values/literals into one string.
       "cool-name" = kubix.lib.helmTemplate [
         (kubix.lib.helmValue [ "configMap" "namePrefix" ] "coolNamePrefix")
@@ -603,12 +614,17 @@ Templated result is:
   "apiVersion": "v1",
   "data": {
     "cool-data": "defaultValue", # <-- default value is provided
+    "cool-flag": "true", # <-- boolean rendered as string
     "cool-name": "coolNamePrefix-coolNameSuffix" # <-- template strings can be composed
   },
   "kind": "ConfigMap",
   "metadata": {
     "name": "example-configmap",
-    "namespace": "default"
+    "namespace": "default",
+    "annotations": { # <-- complex value can be used as JSON
+      "foo": "bar",
+      "bar": "baz"
+    }
   }
 }
 ```
@@ -623,12 +639,17 @@ helm template example-chart result --set configMap.coolDataValue='This is custom
   "apiVersion": "v1",
   "data": {
     "cool-data": "This is custom value!", # <-- can be customized!
+    "cool-flag": "true",
     "cool-name": "coolNamePrefix-coolNameSuffix"
   },
   "kind": "ConfigMap",
   "metadata": {
     "name": "example-configmap",
-    "namespace": "default"
+    "namespace": "default",
+    "annotations": {
+      "foo": "bar",
+      "bar": "baz"
+    }
   }
 }
 ```

@@ -1,0 +1,20 @@
+{
+  "apiVersion": "v1",
+  "data": {
+    "example.property.1": "value1",
+    "example.property.2": "value2",
+    "example.property.3": "customValue",
+    "example.property.6": "true",
+    "example.property.4": "customValue-otherValue",
+    "example.property.5": "customValue-customValue-otherValue"
+  },
+  "kind": "ConfigMap",
+  "metadata": {
+    "annotations": {
+      "bar": "baz",
+      "foo": "from-helm"
+    },
+    "name": "example-configmap",
+    "namespace": "default"
+  }
+}

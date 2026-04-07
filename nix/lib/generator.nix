@@ -37,7 +37,7 @@ let
     ) manifest postProcessors;
 
   renderHelmTemplate =
-    parts: renderHelmValue:
+    parts: renderHelmValue: renderHelmValueToJson: renderHelmValueQuoted:
     lib.concatStrings (
       map (
         part:
@@ -47,8 +47,13 @@ let
           builtins.toString part
         else if builtins.isAttrs part && part ? __kubixHelmValue then
           renderHelmValue part.__kubixHelmValue
+        else if builtins.isAttrs part && part ? __kubixHelmValueToJson then
+          renderHelmValueToJson part.__kubixHelmValueToJson
+        else if builtins.isAttrs part && part ? __kubixHelmValueQuoted then
+          renderHelmValueQuoted part.__kubixHelmValueQuoted
         else if builtins.isAttrs part && part ? __kubixHelmTemplate then
-          renderHelmTemplate part.__kubixHelmTemplate.parts renderHelmValue
+          renderHelmTemplate part.__kubixHelmTemplate.parts renderHelmValue renderHelmValueToJson
+            renderHelmValueQuoted
         else
           throw "kubix: unsupported value found in helm template parts"
       ) parts
@@ -60,8 +65,14 @@ let
         v:
         if builtins.isAttrs v && v ? __kubixHelmValue then
           v.__kubixHelmValue.default
+        else if builtins.isAttrs v && v ? __kubixHelmValueToJson then
+          v.__kubixHelmValueToJson.default
+        else if builtins.isAttrs v && v ? __kubixHelmValueQuoted then
+          builtins.toString v.__kubixHelmValueQuoted.default
         else if builtins.isAttrs v && v ? __kubixHelmTemplate then
-          renderHelmTemplate v.__kubixHelmTemplate.parts (helmValue: builtins.toString helmValue.default)
+          renderHelmTemplate v.__kubixHelmTemplate.parts (helmValue: builtins.toString helmValue.default) (
+            helmValue: builtins.toJSON helmValue.default
+          ) (helmValue: builtins.toString helmValue.default)
         else if builtins.isList v then
           map replace v
         else if builtins.isAttrs v then
@@ -85,11 +96,28 @@ let
           mkPlaceholder (builtins.typeOf v.__kubixHelmValue.default) (
             "{{ .Values." + (lib.concatStringsSep "." v.__kubixHelmValue.path) + " }}"
           )
-        else if builtins.isAttrs v && v ? __kubixHelmTemplate then
-          renderHelmTemplate v.__kubixHelmTemplate.parts (
-            helmValue:
-            mkPlaceholder "string" ("{{ .Values." + (lib.concatStringsSep "." helmValue.path) + " }}")
+        else if builtins.isAttrs v && v ? __kubixHelmValueToJson then
+          mkPlaceholder "raw" (
+            "{{ toJson .Values." + (lib.concatStringsSep "." v.__kubixHelmValueToJson.path) + " }}"
           )
+        else if builtins.isAttrs v && v ? __kubixHelmValueQuoted then
+          mkPlaceholder "raw" (
+            "{{ quote .Values." + (lib.concatStringsSep "." v.__kubixHelmValueQuoted.path) + " }}"
+          )
+        else if builtins.isAttrs v && v ? __kubixHelmTemplate then
+          renderHelmTemplate v.__kubixHelmTemplate.parts
+            (
+              helmValue:
+              mkPlaceholder "string" ("{{ .Values." + (lib.concatStringsSep "." helmValue.path) + " }}")
+            )
+            (
+              helmValue:
+              mkPlaceholder "string" ("{{ toJson .Values." + (lib.concatStringsSep "." helmValue.path) + " }}")
+            )
+            (
+              helmValue:
+              mkPlaceholder "string" ("{{ quote .Values." + (lib.concatStringsSep "." helmValue.path) + " }}")
+            )
         else if builtins.isList v then
           map replace v
         else if builtins.isAttrs v then
@@ -409,6 +437,10 @@ let
         acc: v:
         if builtins.isAttrs v && v ? __kubixHelmValue then
           updatePath v.__kubixHelmValue.path v.__kubixHelmValue.default acc
+        else if builtins.isAttrs v && v ? __kubixHelmValueToJson then
+          updatePath v.__kubixHelmValueToJson.path v.__kubixHelmValueToJson.default acc
+        else if builtins.isAttrs v && v ? __kubixHelmValueQuoted then
+          updatePath v.__kubixHelmValueQuoted.path v.__kubixHelmValueQuoted.default acc
         else if builtins.isAttrs v && v ? __kubixHelmTemplate then
           lib.foldl' update acc v.__kubixHelmTemplate.parts
         else if builtins.isList v then
