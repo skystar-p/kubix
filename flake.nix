@@ -87,51 +87,24 @@
       lib.helmTypeOr = type: nixpkgs.lib.types.either self.lib.helmType type;
       lib.isHelmType =
         let
-          isHelmValue =
-            value:
+          checkHelmValueVariants =
+            typename: value:
             let
-              helmValue = value.__kubixHelmValue;
+              helmValue = value.${typename};
             in
-            builtins.isAttrs value
-            && builtins.hasAttr "__kubixHelmValue" value
-            && builtins.isAttrs helmValue
-            && builtins.hasAttr "path" helmValue
+            value ? ${typename}.path
+            && value ? ${typename}.default
             && builtins.isList helmValue.path
-            && builtins.all builtins.isString helmValue.path
-            && builtins.hasAttr "default" helmValue;
-          isHelmValueToJson =
-            value:
-            let
-              helmValue = value.__kubixHelmValueToJson;
-            in
-            builtins.isAttrs value
-            && builtins.hasAttr "__kubixHelmValueToJson" value
-            && builtins.isAttrs helmValue
-            && builtins.hasAttr "path" helmValue
-            && builtins.isList helmValue.path
-            && builtins.all builtins.isString helmValue.path
-            && builtins.hasAttr "default" helmValue;
-          isHelmValueQuoted =
-            value:
-            let
-              helmValue = value.__kubixHelmValueQuoted;
-            in
-            builtins.isAttrs value
-            && builtins.hasAttr "__kubixHelmValueQuoted" value
-            && builtins.isAttrs helmValue
-            && builtins.hasAttr "path" helmValue
-            && builtins.isList helmValue.path
-            && builtins.all builtins.isString helmValue.path
-            && builtins.hasAttr "default" helmValue;
+            && builtins.all builtins.isString helmValue.path;
+          isHelmValue = checkHelmValueVariants "__kubixHelmValue";
+          isHelmValueToJson = checkHelmValueVariants "__kubixHelmValueToJson";
+          isHelmValueQuoted = checkHelmValueVariants "__kubixHelmValueQuoted";
           isHelmTemplate =
             value:
             let
               helmTemplate = value.__kubixHelmTemplate;
             in
-            builtins.isAttrs value
-            && builtins.hasAttr "__kubixHelmTemplate" value
-            && builtins.isAttrs helmTemplate
-            && builtins.hasAttr "parts" helmTemplate
+            value ? __kubixHelmTemplate.parts
             && builtins.isList helmTemplate.parts
             && builtins.all (
               part:
@@ -142,7 +115,8 @@
               || isHelmTemplate part
             ) helmTemplate.parts;
         in
-        value: isHelmValue value || isHelmValueToJson value || isHelmValueQuoted value || isHelmTemplate value;
+        value:
+        isHelmValue value || isHelmValueToJson value || isHelmValueQuoted value || isHelmTemplate value;
 
       checks = forAllSystems (pkgs: (import ./nix/tests { inherit self pkgs; }));
     };
