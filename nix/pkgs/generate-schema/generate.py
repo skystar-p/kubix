@@ -11,10 +11,11 @@ VERSIONS = {
     "1.32": "v1.32.10-standalone-strict",
     "1.33": "v1.33.6-standalone-strict",
     "1.34": "v1.34.2-standalone-strict",
-    "1.35": "v1.35.0-standalone-strict",
+    "1.35": "v1.35.4-standalone-strict",
+    "1.36": "v1.36.0-standalone-strict",
 }
 REPO_URL = "https://github.com/yannh/kubernetes-json-schema.git"
-DEFAULT_REPO_REF = "7464e8eb55dab7063a4e6cb6cd6e2ed19f399580" # 2025-12-28
+DEFAULT_REPO_REF = "7fca119d49e7885cffbf34a388944091d3548c6a" # 2026-04-27
 
 # e.g. pod-v1.json
 FILE_NAME_PATTERN = re.compile(r"^.+\-v\d+\.json$")
