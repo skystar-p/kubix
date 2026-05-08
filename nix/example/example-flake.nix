@@ -25,9 +25,9 @@
       ];
 
       perSystem =
-        { pkgs, lib, ... }:
+        { system, ... }:
         {
-          packages.default = kubix.lib.buildManifests pkgs {
+          packages.default = kubix.lib.buildManifests system {
             schemas = [
               {
                 apiVersion = "v1";
